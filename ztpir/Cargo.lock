@@ -1430,14 +1430,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "zero2prod"
-version = "0.1.0"
-dependencies = [
- "actix-web",
- "tokio",
-]
-
-[[package]]
 name = "zerofrom"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1523,4 +1515,12 @@ checksum = "91e19ebc2adc8f83e43039e79776e3fda8ca919132d68a1fed6a5faca2683748"
 dependencies = [
  "cc",
  "pkg-config",
+]
+
+[[package]]
+name = "ztpir"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "tokio",
 ]
