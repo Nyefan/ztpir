@@ -1,4 +1,4 @@
-use actix_web::{App, HttpResponse, HttpServer, Responder, web};
+use actix_web::{App, HttpResponse, HttpServer, web};
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
@@ -8,6 +8,17 @@ async fn main() -> Result<(), std::io::Error> {
         .await
 }
 
-async fn health_check() -> impl Responder {
-    HttpResponse::Ok()
+async fn health_check() -> HttpResponse {
+    HttpResponse::Ok().finish()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn health_check_returns_ok() {
+        let response = health_check().await;
+        assert!(response.status().is_success());
+    }
 }
