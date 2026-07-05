@@ -23,4 +23,6 @@ run = "cargo test"
 depends = ["fmt", "check", "clippy"]
 
 [tasks.ci]
-depends = ["audit", "lint", "coverage", "test", "build"]
+depends = ["audit", "lint"]
+# this is the only way to run a bunch of dependencies blocking and in order
+run = "mise run coverage && mise run build -- --release --locked"

@@ -4,6 +4,8 @@
 !.cargo/**/*
 !src/
 !src/**/*
+!tests/
+!tests/**/*
 
 !.gitignore
 !Cargo.toml
