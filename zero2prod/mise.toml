@@ -20,7 +20,7 @@ run = "cargo fmt"
 run = "cargo test"
 
 [tasks.lint]
-depends = ["check", "fmt", "clippy"]
+depends = ["fmt", "check", "clippy"]
 
 [tasks.ci]
 depends = ["audit", "lint", "coverage", "test", "build"]

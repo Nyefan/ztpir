@@ -3,6 +3,9 @@ name = "zero2prod"
 version = "0.1.0"
 edition = "2024"
 
+[lints.rust]
+warnings = "deny"
+
 [dependencies]
 actix-web = "4.14.0"
 tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread"]}
