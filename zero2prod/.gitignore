@@ -1,8 +1,12 @@
 **/*
 
+!.cargo/
+!.cargo/**/*
+!src/
+!src/**/*
+
 !.gitignore
 !Cargo.toml
 !Cargo.lock
-
-!src/
-!src/**/*
+!mise.toml
+!README.md

@@ -1,0 +1,26 @@
+[tasks.audit]
+run = "cargo audit"
+
+[tasks.build]
+run = "cargo build"
+
+[tasks.check]
+run = "cargo check"
+
+[tasks.clippy]
+run = "cargo clippy"
+
+[tasks.coverage]
+run = "cargo llvm-cov"
+
+[tasks.fmt]
+run = "cargo fmt"
+
+[tasks.test]
+run = "cargo test"
+
+[tasks.lint]
+depends = ["check", "fmt", "clippy"]
+
+[tasks.ci]
+depends = ["audit", "lint", "coverage", "test", "build"]
