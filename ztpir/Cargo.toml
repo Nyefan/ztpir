@@ -9,6 +9,7 @@ warnings = "deny"
 [dependencies]
 actix-web = "4.14.0"
 tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread"]}
+serde = { version = "1.0.228", features = ["derive"] }
 
 [dev-dependencies]
 reqwest = "0.13.4"
