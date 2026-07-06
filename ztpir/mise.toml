@@ -1,3 +1,12 @@
+[tools]
+"cargo:sqlx-cli" = { version = "0.9.0", features = "postgres rustls", default-features = false }
+"cargo:cargo-llvm-cov" = "latest"
+"cargo:cargo-watch" = "latest"
+"cargo:cargo-audit" = "latest"
+"cargo:cargo-expand" = { version = "latest", channel = "nightly" }
+# this must be _after_ the cargo:* tools to ensure that they take priority over ~/.cargo/bin in the `mise bin-paths`
+rust = { version = "stable", components = ["rustfmt", "llvm-tools-preview", "clippy"] }
+
 [tasks.audit]
 run = "cargo audit"
 
@@ -13,8 +22,61 @@ run = "cargo clippy"
 [tasks.coverage]
 run = "cargo llvm-cov"
 
+#TODO: docker-compose - this is awful
+[tasks.db-postgres-init]
+run = """
+#! /usr/bin/env bash
+set -eo pipefail
+
+DB_PORT="${POSTGRES_PORT:=5432}"
+SUPERUSER="${SUPERUSER:=postgres}"
+SUPERUSER_PWD="${SUPERUER_PWD:=password}"
+
+SQLX_TEST_USER="${SQLX_TEST_USER:=app}"
+SQLX_TEST_USER_PWD="${SQLX_TEST_USER_PWD:=password}"
+SQLX_TEST_DB_NAME=${SQLX_TEST_DB_NAME:=ztpir}
+
+CONTAINER_NAME="postgres"
+
+trap 'mise run db-postgres-shutdown' SIGINT ERR
+
+container run \
+  --env POSTGRES_USER=${SUPERUSER} \
+  --env POSTGRES_PASSWORD=${SUPERUER_PWD} \
+  --publish "${DB_PORT}":5432 \
+  --detach \
+  --name "${CONTAINER_NAME}" \
+  postgres -N 1000
+
+until container exec "${CONTAINER_NAME}" pg_isready --username="${SUPERUSER}" --quiet; do
+  >&2 echo "Awaiting postgres startup"
+  sleep 1
+done
+
+>&2 echo "Postgres startup complete"
+>&2 echo "Initializing app db..."
+
+#TODO: migrations, this is also awful
+CREATE_USER_QUERY="CREATE USER ${SQLX_TEST_USER} WITH PASSWORD '${SQLX_TEST_USER_PWD}';"
+GRANT_QUERY="ALTER USER ${SQLX_TEST_USER} CREATEDB;"
+container exec "${CONTAINER_NAME}" psql -U "${SUPERUSER}" -c "${CREATE_USER_QUERY} ${GRANT_QUERY}"
+
+export DATABASE_URL="postgres://${SQLX_TEST_USER}:${SQLX_TEST_USER_PWD}@localhost:${DB_PORT}/${SQLX_TEST_DB_NAME}?sslmode=disable"
+sqlx database create
+
+>&2 echo "Postgres is available on port ${DB_PORT}"
+>&2 echo "Connection String:"
+>&2 echo "${DATABASE_URL}"
+"""
+
+[tasks.db-postgres-shutdown]
+run = "container delete -f postgres"
+
 [tasks.fmt]
 run = "cargo fmt"
+
+[tasks.setup]
+run = "rustup toolchain install nightly --allow-downgrade"
 
 [tasks.test]
 run = "cargo test"
@@ -23,6 +85,12 @@ run = "cargo test"
 depends = ["fmt", "check", "clippy"]
 
 [tasks.ci]
-depends = ["audit", "lint"]
+depends = ["audit", "lint", "db-postgres-init"]
 # this is the only way to run a bunch of dependencies blocking and in order
-run = "mise run coverage && mise run build -- --release --locked"
+run = """
+#! /usr/bin/env bash
+set -eo pipefail
+trap 'mise run db-postgres-shutdown' EXIT
+mise run coverage && mise run build -- --release --locked
+"""
+
