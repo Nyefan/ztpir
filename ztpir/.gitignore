@@ -2,6 +2,8 @@
 
 !.cargo/
 !.cargo/**/*
+!migrations/
+!migrations/**/*
 !src/
 !src/**/*
 !tests/

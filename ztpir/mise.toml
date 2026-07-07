@@ -7,6 +7,17 @@
 # this must be _after_ the cargo:* tools to ensure that they take priority over ~/.cargo/bin in the `mise bin-paths`
 rust = { version = "stable", components = ["rustfmt", "llvm-tools-preview", "clippy"] }
 
+#TODO: use a task template (or maybe a postgres/sqlx hidden task depends?) to set these only for the tasks that require them
+[env]
+POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+POSTGRES_USER="${POSTGRES_USER:-postgres}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-password}"
+POSTGRES_SQLX_USER="${POSTGRES_SQLX_USER:-app}"
+POSTGRES_SQLX_PASSWORD="${POSTGRES_SQLX_PASSWORD:-password}"
+POSTGRES_SQLX_DB="${POSTGRES_SQLX_DB:-ztpir}"
+POSTGRES_CONTAINER_NAME="${POSTGRES_CONTAINER_NAME:-postgres}"
+POSTGRES_SQLX_DATABASE_URI="postgres://${POSTGRES_SQLX_USER}:${POSTGRES_SQLX_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_SQLX_DB}?sslmode=disable"
+
 [tasks.audit]
 run = "cargo audit"
 
@@ -22,33 +33,36 @@ run = "cargo clippy"
 [tasks.coverage]
 run = "cargo llvm-cov"
 
+[tasks.db-postgres-add-migration]
+usage = '''
+arg "<migration_name>"
+'''
+run = '''
+#! /usr/bin/env bash
+if [[ ! "${usage_migration_name}" =~ ^[A-Za-z][A-Za-z_]*$ ]]; then
+  >&2 echo "Error: migration name must match '^[A-Za-z][A-Za-z_]*$'"
+  exit 1
+fi
+sqlx migrate add "${usage_migration_name}"
+'''
+
 #TODO: docker-compose - this is awful
 [tasks.db-postgres-init]
 run = """
 #! /usr/bin/env bash
 set -eo pipefail
 
-DB_PORT="${POSTGRES_PORT:=5432}"
-SUPERUSER="${SUPERUSER:=postgres}"
-SUPERUSER_PWD="${SUPERUER_PWD:=password}"
-
-SQLX_TEST_USER="${SQLX_TEST_USER:=app}"
-SQLX_TEST_USER_PWD="${SQLX_TEST_USER_PWD:=password}"
-SQLX_TEST_DB_NAME=${SQLX_TEST_DB_NAME:=ztpir}
-
-CONTAINER_NAME="postgres"
-
 trap 'mise run db-postgres-shutdown' SIGINT ERR
 
 container run \
-  --env POSTGRES_USER=${SUPERUSER} \
-  --env POSTGRES_PASSWORD=${SUPERUER_PWD} \
-  --publish "${DB_PORT}":5432 \
+  --env POSTGRES_USER=${POSTGRES_USER} \
+  --env POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+  --publish "${POSTGRES_PORT}":5432 \
   --detach \
-  --name "${CONTAINER_NAME}" \
-  postgres -N 1000
+  --name "${POSTGRES_CONTAINER_NAME}" \
+  postgres:18 -N 1000
 
-until container exec "${CONTAINER_NAME}" pg_isready --username="${SUPERUSER}" --quiet; do
+until container exec "${POSTGRES_CONTAINER_NAME}" pg_isready --username="${POSTGRES_USER}" --quiet; do
   >&2 echo "Awaiting postgres startup"
   sleep 1
 done
@@ -57,17 +71,20 @@ done
 >&2 echo "Initializing app db..."
 
 #TODO: migrations, this is also awful
-CREATE_USER_QUERY="CREATE USER ${SQLX_TEST_USER} WITH PASSWORD '${SQLX_TEST_USER_PWD}';"
-GRANT_QUERY="ALTER USER ${SQLX_TEST_USER} CREATEDB;"
-container exec "${CONTAINER_NAME}" psql -U "${SUPERUSER}" -c "${CREATE_USER_QUERY} ${GRANT_QUERY}"
+CREATE_USER_QUERY="CREATE USER ${POSTGRES_SQLX_USER} WITH PASSWORD '${POSTGRES_SQLX_PASSWORD}';"
+GRANT_QUERY="ALTER USER ${POSTGRES_SQLX_USER} CREATEDB;"
+container exec "${POSTGRES_CONTAINER_NAME}" psql -U "${POSTGRES_USER}" -c "${CREATE_USER_QUERY} ${GRANT_QUERY}"
 
-export DATABASE_URL="postgres://${SQLX_TEST_USER}:${SQLX_TEST_USER_PWD}@localhost:${DB_PORT}/${SQLX_TEST_DB_NAME}?sslmode=disable"
-sqlx database create
+DATABASE_URL="${POSTGRES_SQLX_DATABASE_URI}" sqlx database create
+DATABASE_URL="${POSTGRES_SQLX_DATABASE_URI}" sqlx migrate run
 
->&2 echo "Postgres is available on port ${DB_PORT}"
+>&2 echo "Postgres is available on port ${POSTGRES_PORT}"
 >&2 echo "Connection String:"
->&2 echo "${DATABASE_URL}"
+>&2 echo "${POSTGRES_SQLX_DATABASE_URI}"
 """
+
+[tasks.db-postgres-migrate]
+run = 'sqlx migrate run --database-url "${POSTGRES_SQLX_DATABASE_URI}"'
 
 [tasks.db-postgres-shutdown]
 run = "container delete -f postgres"

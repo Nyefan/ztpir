@@ -21,4 +21,5 @@ mise run setup
       ```
     * this is because container-runtime-linux uses 192.168 instead of any localhost addresses, which will also likely 
       break some people's networking on LANs that overlap with the selected ip or that use the entire 192.168 address 
-      space since it's explicitly reserved for private networks and NOT local networks.  Apple fucked up badly here.
+      space since it's explicitly reserved for private networks and NOT local networks.  Apple fucked up badly here
+      (although in their defense, docker fucked up first and this sort of matches the broken docker desktop behavior).
