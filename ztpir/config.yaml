@@ -1,0 +1,7 @@
+application_port: 8080
+database:
+  username: "app"
+  password: "password"
+  port: 5432
+  host: "localhost"
+  schema_name: "ztpir"

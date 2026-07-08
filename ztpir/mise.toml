@@ -9,14 +9,15 @@ rust = { version = "stable", components = ["rustfmt", "llvm-tools-preview", "cli
 
 #TODO: use a task template (or maybe a postgres/sqlx hidden task depends?) to set these only for the tasks that require them
 [env]
-POSTGRES_PORT="${POSTGRES_PORT:-5432}"
-POSTGRES_USER="${POSTGRES_USER:-postgres}"
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-password}"
-POSTGRES_SQLX_USER="${POSTGRES_SQLX_USER:-app}"
-POSTGRES_SQLX_PASSWORD="${POSTGRES_SQLX_PASSWORD:-password}"
-POSTGRES_SQLX_DB="${POSTGRES_SQLX_DB:-ztpir}"
-POSTGRES_CONTAINER_NAME="${POSTGRES_CONTAINER_NAME:-postgres}"
-POSTGRES_SQLX_DATABASE_URI="postgres://${POSTGRES_SQLX_USER}:${POSTGRES_SQLX_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_SQLX_DB}?sslmode=disable"
+POSTGRES_PORT = "${POSTGRES_PORT:-5432}"
+POSTGRES_USER = "${POSTGRES_USER:-postgres}"
+POSTGRES_PASSWORD = "${POSTGRES_PASSWORD:-password}"
+POSTGRES_SQLX_USER = "${POSTGRES_SQLX_USER:-app}"
+POSTGRES_SQLX_PASSWORD = "${POSTGRES_SQLX_PASSWORD:-password}"
+POSTGRES_SQLX_DB = "${POSTGRES_SQLX_DB:-ztpir}"
+POSTGRES_CONTAINER_NAME = "${POSTGRES_CONTAINER_NAME:-postgres}"
+POSTGRES_SQLX_DATABASE_URI = "postgres://${POSTGRES_SQLX_USER}:${POSTGRES_SQLX_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_SQLX_DB}?sslmode=disable"
+DATABASE_URL="${POSTGRES_SQLX_DATABASE_URI}" # sqlx uses non-prefixed
 
 [tasks.audit]
 run = "cargo audit"
@@ -99,7 +100,10 @@ run = "rustup toolchain install nightly --allow-downgrade"
 run = "cargo test"
 
 [tasks.lint]
-depends = ["fmt", "check", "clippy"]
+run = [
+    { task = "fmt" },
+    { task = "check" },
+    { task = "clippy" }]
 
 [tasks.ci]
 depends = ["audit", "lint", "db-postgres-init"]

@@ -12,5 +12,6 @@
 !.gitignore
 !Cargo.toml
 !Cargo.lock
+!config.yaml
 !mise.toml
 !README.md
