@@ -8,7 +8,7 @@ fn spawn_app() -> String {
         .local_addr()
         .expect("listener bound without an address")
         .port();
-    let server = ztpir::run(listener).expect("Failed to spawn server");
+    let server = ztpir::startup::run(listener).expect("Failed to spawn server");
     tokio::spawn(server);
     format!("http://127.0.0.1:{port}")
 }

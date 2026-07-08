@@ -10,7 +10,19 @@ warnings = "deny"
 actix-web = "4.14.0"
 tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread"] }
 serde = { version = "1.0.228", features = ["derive"] }
-sqlx = { version = "0.9.0", default-features = false, features = ["tls-rustls", "postgres"] }
+sqlx = {
+    version = "0.9.0",
+    default-features = false,
+    features = [
+        "chrono",
+        "macros",
+        "migrate",
+        "postgres",
+        "runtime-tokio",
+        "tls-rustls",
+        "uuid",
+    ]
+}
 
 [dev-dependencies]
 reqwest = "0.13.4"
