@@ -16,13 +16,16 @@ pub async fn startup() -> Result<(), std::io::Error> {
     run_server(listener, connection)?.await
 }
 
-pub fn run_server(listener: TcpListener, connection: PgPool) -> Result<Server, std::io::Error> {
-    let connection = web::Data::new(connection);
+pub fn run_server(
+    listener: TcpListener,
+    connection_pool: PgPool,
+) -> Result<Server, std::io::Error> {
+    let connection_pool = web::Data::new(connection_pool);
     let server = HttpServer::new(move || {
         App::new()
             .route("/healthz", web::get().to(routes::health_check))
             .route("/subscriptions", web::post().to(routes::subscribe))
-            .app_data(connection.clone())
+            .app_data(connection_pool.clone())
     })
     .listen(listener)?
     .run();
