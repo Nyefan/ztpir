@@ -1,22 +1,37 @@
 use reqwest::StatusCode;
 use reqwest::header::CONTENT_TYPE;
-use sqlx::{Connection, PgConnection};
+use sqlx::PgPool;
 use std::net::TcpListener;
 
-fn spawn_app() -> String {
+struct TestApp {
+    address: String,
+    connection_pool: PgPool,
+}
+
+async fn spawn_app() -> TestApp {
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind listener");
     let port = listener
         .local_addr()
         .expect("listener bound without an address")
         .port();
-    let server = ztpir::startup::run_server(listener).expect("Failed to spawn server");
+    let address = format!("http://127.0.0.1:{port}");
+
+    let config = ztpir::configuration::get_config().expect("Failed to read configuration.");
+    let connection_pool = PgPool::connect(&config.database.connection_string())
+        .await
+        .expect("Failed to connect to database");
+    let server = ztpir::startup::run_server(listener, connection_pool.clone())
+        .expect("Failed to spawn server");
     tokio::spawn(server);
-    format!("http://127.0.0.1:{port}")
+    TestApp {
+        address,
+        connection_pool,
+    }
 }
 
 #[tokio::test]
 async fn health_check_returns_ok() {
-    let address = spawn_app();
+    let TestApp { address, .. } = spawn_app().await;
     let client = reqwest::Client::new();
 
     let response = client
@@ -33,17 +48,20 @@ async fn health_check_returns_ok() {
 //       B) belongs in e2e and unit tests, not integration tests
 #[tokio::test]
 async fn subscribe_returns_a_200_for_valid_form_data() {
-    let address = spawn_app();
-    let config = ztpir::configuration::get_config().expect("Failed to read configuration.");
-    let connection_string = config.database.connection_string();
-    let mut connection = PgConnection::connect(&connection_string)
+    let TestApp {
+        address,
+        connection_pool,
+    } = spawn_app().await;
+    let mut connection = connection_pool
+        .acquire()
         .await
-        .expect("Failed to connect to database");
+        .expect("Failed to acquire connection");
+
     sqlx::query!(
         "DELETE FROM subscriptions WHERE email = $1",
         "ursula_le_guin@ztpir.com"
     )
-    .execute(&mut connection)
+    .execute(connection.as_mut())
     .await
     .expect("Failed to execute query");
     let client = reqwest::Client::new();
@@ -63,7 +81,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
         "SELECT email, name FROM subscriptions WHERE email = $1",
         "ursula_le_guin@ztpir.com"
     )
-    .fetch_optional(&mut connection)
+    .fetch_optional(connection.as_mut())
     .await
     .expect("Failed to execute query");
 
@@ -77,7 +95,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
 
 #[tokio::test]
 async fn subscribe_returns_a_400_when_data_is_missing() {
-    let address = spawn_app();
+    let TestApp { address, .. } = spawn_app().await;
     let client = reqwest::Client::new();
     let cases = vec![
         ("name=le%20guin", "missing the email"),
