@@ -16,11 +16,11 @@ async fn spawn_app() -> TestApp {
         .port();
     let address = format!("http://127.0.0.1:{port}");
 
-    let config = ztpir::configuration::get_config().expect("Failed to read configuration.");
+    let config = app::configuration::get_config().expect("Failed to read configuration.");
     let connection_pool = PgPool::connect(&config.database.connection_string())
         .await
         .expect("Failed to connect to database");
-    let server = ztpir::startup::run_server(listener, connection_pool.clone())
+    let server = app::startup::run_server(listener, connection_pool.clone())
         .expect("Failed to spawn server");
     tokio::spawn(server);
     TestApp {

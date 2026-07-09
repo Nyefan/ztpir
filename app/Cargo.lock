@@ -231,6 +231,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "app"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "config",
+ "reqwest",
+ "serde",
+ "sqlx",
+ "tokio",
+]
+
+[[package]]
 name = "arraydeque"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3326,16 +3338,4 @@ checksum = "91e19ebc2adc8f83e43039e79776e3fda8ca919132d68a1fed6a5faca2683748"
 dependencies = [
  "cc",
  "pkg-config",
-]
-
-[[package]]
-name = "ztpir"
-version = "0.1.0"
-dependencies = [
- "actix-web",
- "config",
- "reqwest",
- "serde",
- "sqlx",
- "tokio",
 ]

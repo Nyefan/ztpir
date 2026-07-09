@@ -1,4 +1,0 @@
-[env]
-# this has to be set for sqlx
-# when using mise commands, this is handled, but for IDE highlighting, this is helpful
-DATABASE_URL = "postgres://app:password@localhost:5432/ztpir?sslmode=disable"

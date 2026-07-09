@@ -2,5 +2,5 @@
 
 !.gitignore
 
-!ztpir/
-!ztpir/**/*
+!app/
+!app/**/*

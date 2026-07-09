@@ -17,7 +17,6 @@ POSTGRES_SQLX_PASSWORD = "${POSTGRES_SQLX_PASSWORD:-password}"
 POSTGRES_SQLX_DB = "${POSTGRES_SQLX_DB:-ztpir}"
 POSTGRES_CONTAINER_NAME = "${POSTGRES_CONTAINER_NAME:-postgres}"
 POSTGRES_SQLX_DATABASE_URI = "postgres://${POSTGRES_SQLX_USER}:${POSTGRES_SQLX_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_SQLX_DB}?sslmode=disable"
-DATABASE_URL="${POSTGRES_SQLX_DATABASE_URI}" # sqlx uses non-prefixed
 
 [tasks.audit]
 run = "cargo audit"
@@ -76,8 +75,9 @@ CREATE_USER_QUERY="CREATE USER ${POSTGRES_SQLX_USER} WITH PASSWORD '${POSTGRES_S
 GRANT_QUERY="ALTER USER ${POSTGRES_SQLX_USER} CREATEDB;"
 container exec "${POSTGRES_CONTAINER_NAME}" psql -U "${POSTGRES_USER}" -c "${CREATE_USER_QUERY} ${GRANT_QUERY}"
 
-DATABASE_URL="${POSTGRES_SQLX_DATABASE_URI}" sqlx database create
-DATABASE_URL="${POSTGRES_SQLX_DATABASE_URI}" sqlx migrate run
+sqlx database create -D "${POSTGRES_SQLX_DATABASE_URI}"
+sqlx migrate run -D "${POSTGRES_SQLX_DATABASE_URI}"
+cargo sqlx prepare -D "${POSTGRES_SQLX_DATABASE_URI}" --all -- --all-targets
 
 >&2 echo "Postgres is available on port ${POSTGRES_PORT}"
 >&2 echo "Connection String:"
@@ -85,7 +85,7 @@ DATABASE_URL="${POSTGRES_SQLX_DATABASE_URI}" sqlx migrate run
 """
 
 [tasks.db-postgres-migrate]
-run = 'sqlx migrate run --database-url "${POSTGRES_SQLX_DATABASE_URI}"'
+run = 'sqlx migrate run -D "${POSTGRES_SQLX_DATABASE_URI}"'
 
 [tasks.db-postgres-shutdown]
 run = "container delete -f postgres"
