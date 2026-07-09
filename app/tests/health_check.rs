@@ -1,7 +1,9 @@
+use app::configuration::DatabaseSettings;
 use reqwest::StatusCode;
 use reqwest::header::CONTENT_TYPE;
-use sqlx::PgPool;
+use sqlx::{AssertSqlSafe, Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
+use uuid::Uuid;
 
 struct TestApp {
     address: String,
@@ -16,10 +18,9 @@ async fn spawn_app() -> TestApp {
         .port();
     let address = format!("http://127.0.0.1:{port}");
 
-    let config = app::configuration::get_config().expect("Failed to read configuration.");
-    let connection_pool = PgPool::connect(&config.database.connection_string())
-        .await
-        .expect("Failed to connect to database");
+    let mut config = app::configuration::get_config().expect("Failed to read configuration.");
+    config.database.schema_name = Uuid::now_v7().to_string();
+    let connection_pool = configure_database(&config.database).await;
     let server = app::startup::run_server(listener, connection_pool.clone())
         .expect("Failed to spawn server");
     tokio::spawn(server);
@@ -27,6 +28,34 @@ async fn spawn_app() -> TestApp {
         address,
         connection_pool,
     }
+}
+
+async fn configure_database(app_database_settings: &DatabaseSettings) -> PgPool {
+    let pg_database_settings = DatabaseSettings {
+        schema_name: "postgres".to_string(),
+        // username: "postgres".to_string(),
+        // password: "password".to_string(),
+        ..app_database_settings.clone()
+    };
+    PgConnection::connect(&pg_database_settings.connection_string())
+        .await
+        .expect("Failed to connect to Postgres")
+        .execute(AssertSqlSafe(format!(
+            r#"CREATE DATABASE "{}";"#,
+            app_database_settings.schema_name
+        )))
+        .await
+        .expect("Failed to create test schema");
+
+    let connection_pool = PgPool::connect(&app_database_settings.connection_string())
+        .await
+        .expect("Failed to connect to database");
+    sqlx::migrate!("./migrations")
+        .run(&connection_pool)
+        .await
+        .expect("Failed to migrate the database");
+
+    connection_pool
 }
 
 #[tokio::test]
@@ -56,14 +85,6 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
         .acquire()
         .await
         .expect("Failed to acquire connection");
-
-    sqlx::query!(
-        "DELETE FROM subscriptions WHERE email = $1",
-        "ursula_le_guin@ztpir.com"
-    )
-    .execute(connection.as_mut())
-    .await
-    .expect("Failed to execute query");
     let client = reqwest::Client::new();
 
     // TODO: urlencode with lib

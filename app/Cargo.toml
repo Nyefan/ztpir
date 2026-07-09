@@ -24,6 +24,7 @@ sqlx = {
     ]
 }
 tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread"] }
+uuid = { version = "1.23.4", features = ["v4", "v7"] }
 
 [dev-dependencies]
 reqwest = "0.13.4"
