@@ -1,9 +1,20 @@
 use app::configuration::DatabaseSettings;
+use app::telemetry::{get_subscriber, init_subscriber};
 use reqwest::StatusCode;
 use reqwest::header::CONTENT_TYPE;
 use sqlx::{AssertSqlSafe, Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
+use std::sync::LazyLock;
+use tracing_subscriber::fmt::writer::BoxMakeWriter;
 use uuid::Uuid;
+
+static TRACING: LazyLock<()> = LazyLock::new(|| {
+    let sink = std::env::var("TEST_LOG")
+        .map(|_| BoxMakeWriter::new(std::io::stdout))
+        .unwrap_or(BoxMakeWriter::new(std::io::sink));
+    let subscriber = get_subscriber("test".into(), "debug".into(), sink);
+    init_subscriber(subscriber);
+});
 
 struct TestApp {
     address: String,
@@ -11,6 +22,7 @@ struct TestApp {
 }
 
 async fn spawn_app() -> TestApp {
+    LazyLock::force(&TRACING);
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind listener");
     let port = listener
         .local_addr()

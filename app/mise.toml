@@ -1,9 +1,11 @@
 [tools]
 "cargo:sqlx-cli" = { version = "0.9.0", features = "postgres rustls", default-features = false }
+"cargo:bunyan" = "latest"
 "cargo:cargo-llvm-cov" = "latest"
 "cargo:cargo-watch" = "latest"
 "cargo:cargo-audit" = "latest"
 "cargo:cargo-expand" = { version = "latest", channel = "nightly" }
+"cargo:cargo-udeps" = { version = "latest", channel = "nightly" }
 # this must be _after_ the cargo:* tools to ensure that they take priority over ~/.cargo/bin in the `mise bin-paths`
 rust = { version = "stable", components = ["rustfmt", "llvm-tools-preview", "clippy"] }
 
@@ -97,21 +99,30 @@ run = "cargo fmt"
 run = "rustup toolchain install nightly --allow-downgrade"
 
 [tasks.test]
-run = "cargo test"
+depends = ["db-postgres-init"]
+run = "TEST_LOG=true cargo test | bunyan"
+depends_post = ["db-postgres-shutdown"]
+
+[tasks.udeps]
+run = "cargo +nightly udeps"
 
 [tasks.lint]
 run = [
     { task = "fmt" },
+    { task = "db-postgres-init" },
+    { task = "db-postgres-shutdown" },
     { task = "check" },
-    { task = "clippy" }]
+    { task = "clippy" },
+    { task = "udeps" },
+]
 
 [tasks.ci]
-depends = ["audit", "lint", "db-postgres-init"]
+depends = ["audit", "lint"]
 # this is the only way to run a bunch of dependencies blocking and in order
 run = """
 #! /usr/bin/env bash
 set -eo pipefail
 trap 'mise run db-postgres-shutdown' EXIT
-mise run coverage && mise run build -- --release --locked
+mise run db-postgres-init && mise run coverage && mise run build -- --release --locked
 """
 

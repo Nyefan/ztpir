@@ -6,7 +6,11 @@ use std::net::TcpListener;
 use tracing_actix_web::TracingLogger;
 
 pub async fn startup() -> Result<(), std::io::Error> {
-    telemetry::init_subscriber(telemetry::get_subscriber("ztpir".into(), "info".into()));
+    telemetry::init_subscriber(telemetry::get_subscriber(
+        "ztpir".into(),
+        "info".into(),
+        std::io::stdout,
+    ));
     let configuration = get_config().expect("Failed to read configuration");
     let address = format!("127.0.0.1:{}", configuration.application_port);
     let listener = TcpListener::bind(address)?;
