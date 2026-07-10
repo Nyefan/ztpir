@@ -1,37 +1,51 @@
 use actix_web::{HttpResponse, web};
+use sqlx::PgPool;
+use tracing::instrument;
 
-#[derive(serde::Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 pub(crate) struct FormData {
     email: String,
     name: String,
 }
 
+#[instrument(
+    name = "New subscription request received",
+    skip(form, connection_pool),
+    fields(email = %form.email, name = %form.name)
+)]
 pub(crate) async fn subscribe(
     form: web::Form<FormData>,
-    connection_pool: web::Data<sqlx::PgPool>,
+    connection_pool: web::Data<PgPool>,
 ) -> HttpResponse {
-    tracing::info!("New subscription request received",);
-
-    match sqlx::query!(
-        r#"
-            INSERT INTO subscriptions(email, name)
-            VALUES($1, $2)
-        "#,
-        form.email,
-        form.name
-    )
-    .execute(connection_pool.get_ref())
-    .await
-    {
-        Ok(_) => {
-            tracing::info!("New subscriber details have been saved",);
-            HttpResponse::Ok().finish()
-        }
+    match insert_subscriber(&connection_pool, &form).await {
+        Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => {
             tracing::error!("Failed to insert into subscriptions: {:?}", e);
             HttpResponse::InternalServerError().finish()
         }
     }
+}
+
+#[instrument(
+    name = "Saving new subscriber details in the database",
+    skip(form, pool)
+)]
+async fn insert_subscriber(pool: &PgPool, form: &FormData) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        r#"
+            INSERT INTO subscriptions(email, name)
+            VALUES($1, $2)
+        "#,
+        form.email,
+        form.name,
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to insert subscriber: {:?}", e);
+        e
+    })?;
+    Ok(())
 }
 
 // TODO: test the actual behavior of subscribe (i.e. that it inserts into the db, etc.)

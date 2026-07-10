@@ -104,7 +104,7 @@ run = "TEST_LOG=true cargo test | bunyan"
 depends_post = ["db-postgres-shutdown"]
 
 [tasks.udeps]
-run = "cargo +nightly udeps"
+run = "cargo +nightly udeps --all-targets"
 
 [tasks.lint]
 run = [

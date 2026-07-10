@@ -9,6 +9,7 @@ warnings = "deny"
 [dependencies]
 actix-web = "4.14.0"
 config = "0.15.25"
+secrecy = { version = "0.10.3", features = ["serde"] }
 serde = { version = "1.0.228", features = ["derive"] }
 sqlx = {
     version = "0.9.0",
