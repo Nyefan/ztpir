@@ -1,13 +1,13 @@
 use crate::configuration::get_config;
-use crate::routes;
+use crate::{routes, telemetry};
 use actix_web::{App, HttpServer, dev, web};
 use sqlx::PgPool;
 use std::net::TcpListener;
 use tracing_actix_web::TracingLogger;
 
 pub async fn startup() -> Result<(), std::io::Error> {
+    telemetry::init_subscriber(telemetry::get_subscriber("ztpir".into(), "info".into()));
     let configuration = get_config().expect("Failed to read configuration");
-    println!("{:?}", configuration);
     let address = format!("127.0.0.1:{}", configuration.application_port);
     let listener = TcpListener::bind(address)?;
     let connection = PgPool::connect(&configuration.database.connection_string())

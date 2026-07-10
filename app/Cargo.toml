@@ -26,6 +26,7 @@ sqlx = {
 tracing = { version = "0.1.44" }
 tracing-actix-web = { version = "0.7.22", features = ["uuid_v7"] }
 tracing-bunyan-formatter = { version = "0.3.10" }
+tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread"] }
 uuid = { version = "1.23.4", features = ["v4", "v7"] }

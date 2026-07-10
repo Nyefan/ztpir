@@ -10,6 +10,10 @@ pub(crate) async fn subscribe(
     form: web::Form<FormData>,
     connection_pool: web::Data<sqlx::PgPool>,
 ) -> HttpResponse {
+    tracing::info!(
+        "New subscription request received",
+    );
+
     match sqlx::query!(
         r#"
             INSERT INTO subscriptions(email, name)
@@ -21,9 +25,17 @@ pub(crate) async fn subscribe(
     .execute(connection_pool.get_ref())
     .await
     {
-        Ok(_) => HttpResponse::Ok().finish(),
+        Ok(_) => {
+            tracing::info!(
+                "New subscriber details have been saved",
+            );
+            HttpResponse::Ok().finish()
+        }
         Err(e) => {
-            eprintln!("Failed to insert into subscriptions: {}", e);
+            tracing::error!(
+                "Failed to insert into subscriptions: {:?}",
+                e
+            );
             HttpResponse::InternalServerError().finish()
         }
     }
