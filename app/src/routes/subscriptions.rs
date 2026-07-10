@@ -2,6 +2,7 @@ use actix_web::{HttpResponse, web};
 use sqlx::PgPool;
 use tracing::instrument;
 
+// TODO: mask email and name - those are also PII and shouldn't be logged except for errors
 #[derive(Debug, serde::Deserialize)]
 pub(crate) struct FormData {
     email: String,
