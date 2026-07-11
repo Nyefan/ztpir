@@ -7,8 +7,9 @@ RUN apk add mise lld clang mold musl-dev
 ARG TARGET="aarch64-unknown-linux-musl"
 RUN rustup target add "${TARGET}"
 
-COPY Cargo.lock Cargo.toml config.yaml ./
+COPY Cargo.lock Cargo.toml ./
 COPY .sqlx .sqlx
+COPY config config
 COPY src src
 
 ARG SQLX_OFFLINE=true
@@ -22,6 +23,7 @@ FROM scratch AS final
 
 WORKDIR /app
 COPY --from=builder /build/app ./ztpir
-COPY config.yaml config.yaml
+COPY config config
 
+ENV ZTPIR_ENVIRONMENT "production"
 ENTRYPOINT ["/app/ztpir"]

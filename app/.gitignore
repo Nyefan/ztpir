@@ -2,6 +2,8 @@
 
 !.sqlx/
 !.sqlx/**/*
+!config/
+!config/**/*
 !migrations/
 !migrations/**/*
 !src/
@@ -13,7 +15,6 @@
 !.gitignore
 !Cargo.toml
 !Cargo.lock
-!config.yaml
 !Dockerfile
 !mise.toml
 !README.md

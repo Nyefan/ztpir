@@ -2,6 +2,8 @@
 
 !.sqlx
 !.sqlx/**/*
+!config
+!config/**/*
 !src
 !src/**/*
 
@@ -9,5 +11,4 @@
 !.dockerignore
 !Cargo.lock
 !Cargo.toml
-!config.yaml
 !Dockerfile

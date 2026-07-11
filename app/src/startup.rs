@@ -13,7 +13,11 @@ pub async fn startup() -> Result<(), std::io::Error> {
         std::io::stdout,
     ));
     let configuration = get_config().expect("Failed to read configuration");
-    let address = format!("127.0.0.1:{}", configuration.application_port);
+    tracing::info!("Starting server with configuration: {:?}", configuration);
+    let address = format!(
+        "{}:{}",
+        configuration.application.interface, configuration.application.port
+    );
     let listener = TcpListener::bind(address)?;
     let connection = PgPool::connect(configuration.database.connection_string().expose_secret())
         .await
