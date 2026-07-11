@@ -9,9 +9,11 @@
 !tests/
 !tests/**/*
 
+!.dockerignore
 !.gitignore
 !Cargo.toml
 !Cargo.lock
 !config.yaml
+!Dockerfile
 !mise.toml
 !README.md
