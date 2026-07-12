@@ -2,7 +2,6 @@ use app::configuration::DatabaseSettings;
 use app::telemetry::{get_subscriber, init_subscriber};
 use reqwest::StatusCode;
 use reqwest::header::CONTENT_TYPE;
-use secrecy::ExposeSecret;
 use sqlx::{AssertSqlSafe, Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
 use std::sync::LazyLock;
@@ -50,7 +49,7 @@ async fn configure_database(app_database_settings: &DatabaseSettings) -> PgPool 
         // password: "password".to_string(),
         ..app_database_settings.clone()
     };
-    PgConnection::connect(&pg_database_settings.connection_string().expose_secret())
+    PgConnection::connect_with(&pg_database_settings.connect_options())
         .await
         .expect("Failed to connect to Postgres")
         .execute(AssertSqlSafe(format!(
@@ -60,10 +59,9 @@ async fn configure_database(app_database_settings: &DatabaseSettings) -> PgPool 
         .await
         .expect("Failed to create test schema");
 
-    let connection_pool =
-        PgPool::connect(&app_database_settings.connection_string().expose_secret())
-            .await
-            .expect("Failed to connect to database");
+    let connection_pool = PgPool::connect_with(app_database_settings.connect_options())
+        .await
+        .expect("Failed to connect to database");
     sqlx::migrate!("./migrations")
         .run(&connection_pool)
         .await

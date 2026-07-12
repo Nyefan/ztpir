@@ -1,5 +1,6 @@
-use config;
 use secrecy::{ExposeSecret, SecretString};
+use serde_aux::field_attributes::deserialize_number_from_string;
+use sqlx::postgres::{PgConnectOptions, PgSslMode};
 
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct Settings {
@@ -9,17 +10,36 @@ pub struct Settings {
 
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct ApplicationSettings {
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub interface: String,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct DatabaseSettings {
+    pub require_ssl: bool,
     pub username: String,
     pub password: SecretString,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
     pub schema_name: String,
+}
+
+impl DatabaseSettings {
+    pub fn connect_options(&self) -> PgConnectOptions {
+        PgConnectOptions::new()
+            .ssl_mode(if self.require_ssl {
+                PgSslMode::Require
+            } else {
+                PgSslMode::Prefer
+            })
+            .username(&self.username)
+            .password(self.password.expose_secret())
+            .host(&self.host)
+            .port(self.port)
+            .database(&self.schema_name)
+    }
 }
 
 // TODO: good god - your code should never, NEVER, know what environment it's running in - behavior
@@ -66,24 +86,15 @@ pub fn get_config() -> Result<Settings, config::ConfigError> {
     let environment_filename = format!("{}.yaml", environment.as_str());
 
     let settings = config::Config::builder()
-        .add_source(config::File::from(config_directory.join("base.yaml")))
+        .add_source(config::File::from(config_directory.join("default.yaml")))
         .add_source(config::File::from(
             config_directory.join(&environment_filename),
         ))
+        .add_source(
+            config::Environment::with_prefix("ZTPIR")
+                .prefix_separator("_")
+                .separator("__"),
+        )
         .build()?;
     settings.try_deserialize::<Settings>()
-}
-
-impl DatabaseSettings {
-    pub fn connection_string(&self) -> SecretString {
-        format!(
-            "postgres://{}:{}@{}:{}/{}",
-            self.username,
-            self.password.expose_secret(),
-            self.host,
-            self.port,
-            self.schema_name
-        )
-        .into()
-    }
 }

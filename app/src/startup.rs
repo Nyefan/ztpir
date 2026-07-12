@@ -1,8 +1,8 @@
 use crate::configuration::get_config;
 use crate::{routes, telemetry};
 use actix_web::{App, HttpServer, dev, web};
-use secrecy::ExposeSecret;
 use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 use std::net::TcpListener;
 use tracing_actix_web::TracingLogger;
 
@@ -19,9 +19,8 @@ pub async fn startup() -> Result<(), std::io::Error> {
         configuration.application.interface, configuration.application.port
     );
     let listener = TcpListener::bind(address)?;
-    let connection = PgPool::connect(configuration.database.connection_string().expose_secret())
-        .await
-        .expect("Failed to connect to Postgres");
+    let connection =
+        PgPoolOptions::new().connect_lazy_with(configuration.database.connect_options());
     run_server(listener, connection)?.await
 }
 

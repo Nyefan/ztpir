@@ -12,6 +12,7 @@ rust = { version = "stable", components = ["rustfmt", "llvm-tools-preview", "cli
 #TODO: use a task template (or maybe a postgres/sqlx hidden task depends?) to set these only for the tasks that require them
 [env]
 ZTPIR_CONTAINER_NAME = "${ZTPIR_CONTAINER_NAME:-ztpir}"
+ZTPIR_ENVIRONMENT = "${ZTPIR_ENVIRONMENT:-local}"
 ZTPIR_PORT = "${ZTPIR_PORT:-8080}"
 POSTGRES_CONTAINER_NAME = "${POSTGRES_CONTAINER_NAME:-postgres}"
 POSTGRES_PASSWORD = "${POSTGRES_PASSWORD:-password}"
@@ -40,7 +41,7 @@ container run \
 """
 
 [tasks.app-container-shutdown]
-run = 'container delete --force "${ZTPIR_CONTAINER_NAME}" || true'
+run = 'container delete --force "${ZTPIR_CONTAINER_NAME}" 2>/dev/null || true'
 
 [tasks.audit]
 run = "cargo audit"
@@ -114,7 +115,7 @@ cargo sqlx prepare -D "${POSTGRES_SQLX_DATABASE_URI}" --all -- --all-targets
 run = 'sqlx migrate run -D "${POSTGRES_SQLX_DATABASE_URI}"'
 
 [tasks.db-postgres-shutdown]
-run = 'container delete --force "${POSTGRES_CONTAINER_NAME}" || true'
+run = 'container delete --force "${POSTGRES_CONTAINER_NAME}" 2>/dev/null || true'
 
 [tasks.fmt]
 run = "cargo fmt"
