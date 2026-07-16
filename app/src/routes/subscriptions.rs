@@ -1,4 +1,4 @@
-use actix_web::{HttpResponse, web};
+use actix_web::{web, HttpResponse};
 use sqlx::PgPool;
 use tracing::instrument;
 
@@ -20,9 +20,16 @@ pub(crate) async fn subscribe(
     form: web::Form<FormData>,
     connection_pool: web::Data<PgPool>,
 ) -> HttpResponse {
+    let form = form.into_inner();
     let new_subscriber = NewSubscriber {
-        name: SubscriberName::parse(form.name.clone()).unwrap(),
-        email: SubscriberEmail::parse(form.email.clone()).unwrap(),
+        name: match SubscriberName::parse(form.name) {
+            Ok(name) => name,
+            Err(e) => return HttpResponse::BadRequest().body(e),
+        },
+        email: match SubscriberEmail::parse(form.email) {
+            Ok(email) => email,
+            Err(e) => return HttpResponse::BadRequest().body(e),
+        },
     };
     match insert_subscriber(&connection_pool, &new_subscriber).await {
         Ok(_) => HttpResponse::Ok().finish(),
