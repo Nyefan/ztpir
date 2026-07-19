@@ -129,9 +129,12 @@ run = "docker network ls | grep ztpir || docker network create ztpir"
 depends = ["setup-rust", "setup-container"]
 
 [tasks.test]
-depends = ["db-postgres-init"]
-run = "TEST_LOG=true cargo test | bunyan"
-depends_post = ["db-postgres-shutdown"]
+run = "cargo test | bunyan"
+
+[tasks.test-with-logs]
+env = { TEST_LOG = true, }
+run = [{ task = "test" }]
+
 
 [tasks.udeps]
 run = "cargo +nightly udeps --all-targets"

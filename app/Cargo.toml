@@ -33,7 +33,12 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread"] }
 unicode-segmentation = "1.13.3"
 uuid = { version = "1.23.4", features = ["v4", "v7"] }
+validator = "0.20.0"
 
 [dev-dependencies]
 claims = "0.8.0"
+fake = "5.1.0"
+quickcheck = "1.1.0"
+quickcheck_macros = "1.2.0"
+rand = "0.10.2"
 reqwest = "0.13.4"

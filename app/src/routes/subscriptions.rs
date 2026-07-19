@@ -1,14 +1,24 @@
-use actix_web::{web, HttpResponse};
+use actix_web::{HttpResponse, web};
 use sqlx::PgPool;
 use tracing::instrument;
 
 use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
 
-// TODO: mask email and name - those are also PII and shouldn't be logged except for errors
+// TODO: mask email and name as SecretStrings - those are also PII and shouldn't be logged except for errors
 #[derive(Debug, serde::Deserialize)]
 pub(crate) struct FormData {
     email: String,
     name: String,
+}
+
+impl TryFrom<FormData> for NewSubscriber {
+    type Error = String;
+
+    fn try_from(form: FormData) -> Result<Self, Self::Error> {
+        let name = SubscriberName::parse(form.name)?;
+        let email = SubscriberEmail::parse(form.email)?;
+        Ok(Self { name, email })
+    }
 }
 
 #[instrument(
@@ -20,23 +30,15 @@ pub(crate) async fn subscribe(
     form: web::Form<FormData>,
     connection_pool: web::Data<PgPool>,
 ) -> HttpResponse {
-    let form = form.into_inner();
-    let new_subscriber = NewSubscriber {
-        name: match SubscriberName::parse(form.name) {
-            Ok(name) => name,
-            Err(e) => return HttpResponse::BadRequest().body(e),
+    match form.into_inner().try_into() {
+        Err(e) => HttpResponse::BadRequest().body(e),
+        Ok(subscriber) => match insert_subscriber(&connection_pool, &subscriber).await {
+            Err(e) => {
+                tracing::error!("Failed to insert into subscriptions: {:?}", e);
+                HttpResponse::InternalServerError().finish()
+            }
+            Ok(_) => HttpResponse::Ok().finish(),
         },
-        email: match SubscriberEmail::parse(form.email) {
-            Ok(email) => email,
-            Err(e) => return HttpResponse::BadRequest().body(e),
-        },
-    };
-    match insert_subscriber(&connection_pool, &new_subscriber).await {
-        Ok(_) => HttpResponse::Ok().finish(),
-        Err(e) => {
-            tracing::error!("Failed to insert into subscriptions: {:?}", e);
-            HttpResponse::InternalServerError().finish()
-        }
     }
 }
 
