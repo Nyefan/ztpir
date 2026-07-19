@@ -23,16 +23,15 @@ POSTGRES_SQLX_DB = "${POSTGRES_SQLX_DB:-ztpir}"
 POSTGRES_SQLX_DATABASE_URI = "postgres://${POSTGRES_SQLX_USER}:${POSTGRES_SQLX_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_SQLX_DB}?sslmode=disable"
 POSTGRES_USER = "${POSTGRES_USER:-postgres}"
 
-[tasks.app-container-build]
-run = 'container build . --tag "${ZTPIR_CONTAINER_NAME}":local'
+[tasks.app-docker-build]
+run = 'docker build . --tag "${ZTPIR_CONTAINER_NAME}":local'
 
-# TODO: revisit container networking after https://github.com/apple/container/issues/1809 is merged and released
-[tasks.app-container-run]
-depends = ["app-container-build", "db-postgres-init"]
+[tasks.app-docker-run]
+depends = ["app-docker-build", "db-postgres-init"]
 run = """
 #! /usr/bin/env bash
-mise app-container-shutdown
-container run \
+mise app-docker-shutdown
+docker run \
   --publish "${ZTPIR_PORT}":5432 \
   --network ztpir \
   --detach \
@@ -40,8 +39,8 @@ container run \
   ${ZTPIR_CONTAINER_NAME}:local
 """
 
-[tasks.app-container-shutdown]
-run = 'container delete --force "${ZTPIR_CONTAINER_NAME}" 2>/dev/null || true'
+[tasks.app-docker-shutdown]
+run = 'docker delete --force "${ZTPIR_CONTAINER_NAME}" 2>/dev/null || true'
 
 [tasks.audit]
 run = "cargo audit"
@@ -80,7 +79,7 @@ set -eo pipefail
 
 trap 'mise run db-postgres-shutdown' SIGINT ERR
 
-container run \
+docker run \
   --env POSTGRES_USER=${POSTGRES_USER} \
   --env POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
   --publish "${POSTGRES_PORT}":5432 \
@@ -89,7 +88,7 @@ container run \
   --name "${POSTGRES_CONTAINER_NAME}" \
   postgres:18 -N 1000
 
-until container exec "${POSTGRES_CONTAINER_NAME}" pg_isready --username="${POSTGRES_USER}" --quiet; do
+until docker exec "${POSTGRES_CONTAINER_NAME}" pg_isready --username="${POSTGRES_USER}" --quiet; do
   >&2 echo "Awaiting postgres startup"
   sleep 1
 done
@@ -100,7 +99,7 @@ done
 #TODO: migrations, this is also awful
 CREATE_USER_QUERY="CREATE USER ${POSTGRES_SQLX_USER} WITH PASSWORD '${POSTGRES_SQLX_PASSWORD}';"
 GRANT_QUERY="ALTER USER ${POSTGRES_SQLX_USER} CREATEDB;"
-container exec "${POSTGRES_CONTAINER_NAME}" psql -U "${POSTGRES_USER}" -c "${CREATE_USER_QUERY} ${GRANT_QUERY}"
+docker exec "${POSTGRES_CONTAINER_NAME}" psql -U "${POSTGRES_USER}" -c "${CREATE_USER_QUERY} ${GRANT_QUERY}"
 
 sqlx database create -D "${POSTGRES_SQLX_DATABASE_URI}"
 sqlx migrate run -D "${POSTGRES_SQLX_DATABASE_URI}"
@@ -115,13 +114,19 @@ cargo sqlx prepare -D "${POSTGRES_SQLX_DATABASE_URI}" --all -- --all-targets
 run = 'sqlx migrate run -D "${POSTGRES_SQLX_DATABASE_URI}"'
 
 [tasks.db-postgres-shutdown]
-run = 'container delete --force "${POSTGRES_CONTAINER_NAME}" 2>/dev/null || true'
+run = 'docker container rm --force "${POSTGRES_CONTAINER_NAME}" 2>/dev/null || true'
 
 [tasks.fmt]
 run = "cargo fmt"
 
-[tasks.setup]
+[tasks.setup-rust]
 run = "rustup toolchain install nightly --allow-downgrade"
+
+[tasks.setup-container]
+run = "docker network ls | grep ztpir || docker network create ztpir"
+
+[tasks.setup]
+depends = ["setup-rust", "setup-container"]
 
 [tasks.test]
 depends = ["db-postgres-init"]
