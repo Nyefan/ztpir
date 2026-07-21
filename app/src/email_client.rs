@@ -1,5 +1,6 @@
 use crate::domain::SubscriberEmail;
 use secrecy::{ExposeSecret, SecretString};
+use std::time::Duration;
 
 pub struct EmailClient {
     http_client: reqwest::Client,
@@ -25,7 +26,10 @@ impl EmailClient {
         authorization_token: SecretString,
     ) -> Self {
         Self {
-            http_client: reqwest::Client::new(),
+            http_client: reqwest::Client::builder()
+                .timeout(Duration::from_secs(10))
+                .build()
+                .unwrap(), //grrrrr - this book really hates results
             base_url,
             sender,
             authorization_token,
@@ -59,6 +63,8 @@ impl EmailClient {
             .json(&body)
             .send()
             .await
+            .map_err(|err| err.to_string())?
+            .error_for_status()
             .map_err(|err| err.to_string())?;
         Ok(())
     }
@@ -68,11 +74,13 @@ impl EmailClient {
 mod tests {
     use crate::domain::SubscriberEmail;
     use crate::email_client::EmailClient;
+    use claims::{assert_err, assert_ok};
     use fake::faker::internet::en::SafeEmail;
     use fake::faker::lorem::en::{Paragraph, Sentence};
     use fake::{Fake, Faker};
     use secrecy::{ExposeSecret, SecretString};
-    use wiremock::matchers::{header, method, path};
+    use std::time::Duration;
+    use wiremock::matchers::{any, header, method, path};
     use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
     struct SendEmailBodyMatcher;
@@ -120,5 +128,89 @@ mod tests {
         let _ = email_client
             .send_email(subscriber_email, &subject, &content, &content)
             .await;
+    }
+
+    #[tokio::test]
+    async fn send_email_succeeds_if_the_server_returns_200() {
+        let mock_server = MockServer::start().await;
+        let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let authorization_token = SecretString::from(Faker.fake::<String>());
+        let email_client = EmailClient::new(
+            reqwest::Url::parse(&mock_server.uri()).unwrap(),
+            sender,
+            authorization_token,
+        );
+
+        let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let subject: String = Sentence(1..2).fake();
+        let content: String = Paragraph(1..10).fake();
+
+        Mock::given(any())
+            .respond_with(ResponseTemplate::new(200))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let result = email_client
+            .send_email(subscriber_email, &subject, &content, &content)
+            .await;
+
+        assert_ok!(result);
+    }
+
+    #[tokio::test]
+    async fn send_email_fails_if_the_server_returns_500() {
+        let mock_server = MockServer::start().await;
+        let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let authorization_token = SecretString::from(Faker.fake::<String>());
+        let email_client = EmailClient::new(
+            reqwest::Url::parse(&mock_server.uri()).unwrap(),
+            sender,
+            authorization_token,
+        );
+
+        let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let subject: String = Sentence(1..2).fake();
+        let content: String = Paragraph(1..10).fake();
+
+        Mock::given(any())
+            .respond_with(ResponseTemplate::new(500))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let result = email_client
+            .send_email(subscriber_email, &subject, &content, &content)
+            .await;
+
+        assert_err!(result);
+    }
+
+    #[tokio::test]
+    async fn send_email_times_out_if_the_server_takes_too_long() {
+        let mock_server = MockServer::start().await;
+        let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let authorization_token = SecretString::from(Faker.fake::<String>());
+        let email_client = EmailClient::new(
+            reqwest::Url::parse(&mock_server.uri()).unwrap(),
+            sender,
+            authorization_token,
+        );
+
+        let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let subject: String = Sentence(1..2).fake();
+        let content: String = Paragraph(1..10).fake();
+
+        Mock::given(any())
+            .respond_with(ResponseTemplate::new(200).set_delay(Duration::from_secs(180)))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let result = email_client
+            .send_email(subscriber_email, &subject, &content, &content)
+            .await;
+
+        assert_err!(result);
     }
 }
