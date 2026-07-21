@@ -8,3 +8,7 @@ database:
   port: 5432
   host: ""
   schema_name: "ztpir"
+email_client:
+  base_url: "http://localhost"
+  sender_email: "test@ztpir.com"
+  authorization_token: "fake-secret"

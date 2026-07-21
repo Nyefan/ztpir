@@ -2,3 +2,6 @@ database:
   username: "app"
   password: "password"
   host: "postgres.containers.local"
+email_client:
+  base_url: "https://api.postmarkapp.com"
+  sender_email: "no-reply@ztpir.com"
