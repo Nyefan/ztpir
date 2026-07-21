@@ -6,6 +6,7 @@ use reqwest::header::CONTENT_TYPE;
 use sqlx::{AssertSqlSafe, Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
 use std::sync::LazyLock;
+use std::time::Duration;
 use tracing_subscriber::fmt::writer::BoxMakeWriter;
 use uuid::Uuid;
 
@@ -41,7 +42,7 @@ async fn spawn_app() -> TestApp {
         .expect("Invalid sender email address.");
     let base_url = reqwest::Url::parse(&config.email_client.base_url).expect("Invalid base url");
     let authorization_token = config.email_client.authorization_token;
-    let email_client = EmailClient::new(base_url, sender_email, authorization_token);
+    let email_client = EmailClient::new(base_url, sender_email, authorization_token, Duration::from_secs(10));
 
     let server = app::startup::run_server(listener, connection_pool.clone(), email_client)
         .expect("Failed to spawn server");

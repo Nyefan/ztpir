@@ -12,3 +12,4 @@ email_client:
   base_url: "http://localhost"
   sender_email: "test@ztpir.com"
   authorization_token: "fake-secret"
+  timeout_milliseconds: 10000

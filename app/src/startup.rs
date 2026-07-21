@@ -1,10 +1,11 @@
 use crate::configuration::get_config;
 use crate::email_client::EmailClient;
 use crate::{routes, telemetry};
-use actix_web::{App, HttpServer, dev, web};
-use sqlx::PgPool;
+use actix_web::{dev, web, App, HttpServer};
 use sqlx::postgres::PgPoolOptions;
+use sqlx::PgPool;
 use std::net::TcpListener;
+use std::time::Duration;
 use tracing_actix_web::TracingLogger;
 
 pub async fn startup() -> Result<(), std::io::Error> {
@@ -30,7 +31,15 @@ pub async fn startup() -> Result<(), std::io::Error> {
         .expect("Invalid sender email address");
     let base_url = reqwest::Url::parse(&config.email_client.base_url).expect("Invalid base url");
     let authorization_token = config.email_client.authorization_token;
-    let email_client = EmailClient::new(base_url, sender_email, authorization_token);
+    let email_client_timeout =
+        Duration::from_millis(config.email_client.timeout_milliseconds.into());
+    let email_client = EmailClient::new(
+        base_url,
+        sender_email,
+        authorization_token,
+        email_client_timeout,
+    );
+
     run_server(listener, connection_pool, email_client)?.await
 }
 
