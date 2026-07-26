@@ -55,7 +55,7 @@ run = "cargo check"
 run = "cargo clippy"
 
 [tasks.coverage]
-run = "cargo llvm-cov"
+run = "cargo llvm-cov --show-missing-lines"
 
 [tasks.db-postgres-add-migration]
 usage = '''

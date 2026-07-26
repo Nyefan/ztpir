@@ -2,9 +2,9 @@ use crate::configuration::{DatabaseSettings, Settings};
 use crate::email_client::EmailClient;
 use crate::routes;
 use actix_web::dev::Server;
-use actix_web::{web, App, HttpServer};
-use sqlx::postgres::PgPoolOptions;
+use actix_web::{App, HttpServer, web};
 use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 use std::net::TcpListener;
 use std::time::Duration;
 use tracing_actix_web::TracingLogger;
@@ -14,7 +14,7 @@ pub fn get_connection_pool(config: &DatabaseSettings) -> PgPool {
 }
 
 pub struct Application {
-    pub port: u16,
+    port: u16,
     server: Server,
 }
 
@@ -76,5 +76,28 @@ impl Application {
 
     pub fn port(&self) -> u16 {
         self.port
+    }
+}
+
+#[cfg(test)]
+mod coverage {
+    use super::*;
+    use crate::configuration::get_config;
+
+    #[tokio::test]
+    async fn run_until_stopped_returns_ok_on_shutdown() {
+        let mut config = get_config().expect("Failed to read config");
+        config.application.port = 0;
+
+        let app = Application::build(config)
+            .await
+            .expect("Failed to build application");
+        assert!(app.port() > 0);
+
+        let handle = app.server.handle();
+        let task = tokio::spawn(app.run_until_stopped());
+        handle.stop(true).await;
+
+        assert!(task.await.unwrap().is_ok());
     }
 }

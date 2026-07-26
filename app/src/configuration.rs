@@ -61,6 +61,7 @@ impl EmailClientSettings {
 // TODO: good god - your code should never, NEVER, know what environment it's running in - behavior
 //       MUST be controlled exclusively by configuration that is environment agnostic.  Anything
 //       else is malpractice.
+#[derive(Debug)]
 pub enum Environment {
     Local,
     Production,
@@ -113,4 +114,44 @@ pub fn get_config() -> Result<Settings, config::ConfigError> {
         )
         .build()?;
     settings.try_deserialize::<Settings>()
+}
+
+#[cfg(test)]
+mod coverage {
+    use super::*;
+    use claims::assert_err;
+    use fake::{Fake, Faker};
+    use std::assert_matches;
+
+    #[test]
+    fn ssl_is_required_when_config_declares_ssl_required() {
+        let db_config = DatabaseSettings {
+            require_ssl: true,
+            username: "".to_string(),
+            password: Default::default(),
+            port: 0,
+            host: "".to_string(),
+            schema_name: "".to_string(),
+        };
+        let pg_options = db_config.connect_options();
+        assert_matches!(pg_options.get_ssl_mode(), PgSslMode::Require);
+    }
+
+    #[test]
+    fn production_environment_is_production() {
+        assert_matches!(
+            Environment::try_from("production".to_string()).unwrap(),
+            Environment::Production
+        );
+    }
+
+    #[test]
+    fn production_environment_renders_as_production() {
+        assert_eq!(Environment::Production.as_str(), "production");
+    }
+
+    #[test]
+    fn invalid_environment_is_err() {
+        assert_err!(Environment::try_from(Faker.fake::<String>()));
+    }
 }
