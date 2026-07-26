@@ -1,5 +1,4 @@
-use crate::helpers::{spawn_app, TestApp};
-use reqwest::header::CONTENT_TYPE;
+use crate::helpers::spawn_app;
 use reqwest::StatusCode;
 
 // TODO: testing the db diff
@@ -7,25 +6,16 @@ use reqwest::StatusCode;
 //       B) belongs in e2e and unit tests, not integration tests
 #[tokio::test]
 async fn subscribe_returns_a_200_for_valid_form_data() {
-    let TestApp {
-        address,
-        connection_pool,
-    } = spawn_app().await;
-    let mut connection = connection_pool
+    let app = spawn_app().await;
+    let mut connection = app
+        .connection_pool
         .acquire()
         .await
         .expect("Failed to acquire connection");
-    let client = reqwest::Client::new();
 
     // TODO: urlencode with lib
     let body = "name=le%20guin&email=ursula_le_guin%40ztpir.com";
-    let response = client
-        .post(&format!("{address}/subscriptions"))
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .body(body)
-        .send()
-        .await
-        .expect("Failed to execute request.");
+    let response = app.post_subscriptions(body.into()).await;
     assert_eq!(StatusCode::OK, response.status());
 
     let saved = sqlx::query!(
@@ -46,8 +36,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
 
 #[tokio::test]
 async fn subscribe_returns_a_400_when_data_is_missing() {
-    let TestApp { address, .. } = spawn_app().await;
-    let client = reqwest::Client::new();
+    let app = spawn_app().await;
     let cases = vec![
         ("name=le%20guin", "missing the email"),
         ("email=ursula_le_guin%40ztpir.com", "missing the name"),
@@ -55,13 +44,7 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
     ];
 
     for (body, error_description) in cases {
-        let response = client
-            .post(&format!("{address}/subscriptions"))
-            .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
-            .body(body)
-            .send()
-            .await
-            .expect("Failed to execute request");
+        let response = app.post_subscriptions(body.into()).await;
 
         assert_eq!(
             StatusCode::BAD_REQUEST,
@@ -74,7 +57,6 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
 #[tokio::test]
 async fn subscribe_returns_a_400_when_fields_are_present_but_invalid() {
     let app = spawn_app().await;
-    let client = reqwest::Client::new();
     let test_cases = vec![
         ("name=&email=ursula_le_guin%40ztpir.com", "empty name"),
         ("name=Ursula&email=", "empty email"),
@@ -82,13 +64,7 @@ async fn subscribe_returns_a_400_when_fields_are_present_but_invalid() {
     ];
 
     for (body, description) in test_cases {
-        let response = client
-            .post(&format!("{}/subscriptions", &app.address))
-            .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
-            .body(body)
-            .send()
-            .await
-            .expect("Failed to execute request");
+        let response = app.post_subscriptions(body.into()).await;
 
         assert_eq!(
             StatusCode::BAD_REQUEST,
