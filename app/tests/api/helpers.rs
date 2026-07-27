@@ -1,5 +1,5 @@
-use app::configuration::{get_config, DatabaseSettings};
-use app::startup::{get_connection_pool, Application};
+use app::configuration::{DatabaseSettings, get_config};
+use app::startup::{Application, get_connection_pool};
 use app::telemetry::{get_subscriber, init_subscriber};
 use sqlx::{AssertSqlSafe, Connection, Executor, PgConnection, PgPool};
 use std::sync::LazyLock;

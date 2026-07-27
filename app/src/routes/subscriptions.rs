@@ -1,8 +1,8 @@
-use actix_web::{web, HttpResponse};
+use actix_web::{HttpResponse, web};
 use sqlx::PgPool;
 use tracing::instrument;
 
-use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
+use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName, SubscriptionStatus};
 
 // TODO: mask email and name as SecretStrings - those are also PII and shouldn't be logged except for errors
 #[derive(Debug, serde::Deserialize)]
@@ -52,11 +52,12 @@ async fn insert_subscriber(
 ) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
-            INSERT INTO subscriptions(email, name)
-            VALUES($1, $2)
+            INSERT INTO subscriptions(email, name, status)
+            VALUES($1, $2, $3::subscription_status)
         "#,
         new_subscriber.email.as_ref(),
         new_subscriber.name.as_ref(),
+        SubscriptionStatus::PendingConfirmation as SubscriptionStatus
     )
     .execute(pool)
     .await

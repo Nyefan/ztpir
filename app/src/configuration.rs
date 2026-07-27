@@ -61,7 +61,7 @@ impl EmailClientSettings {
 // TODO: good god - your code should never, NEVER, know what environment it's running in - behavior
 //       MUST be controlled exclusively by configuration that is environment agnostic.  Anything
 //       else is malpractice.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Environment {
     Local,
     Production,
@@ -138,16 +138,13 @@ mod coverage {
     }
 
     #[test]
-    fn production_environment_is_production() {
-        assert_matches!(
-            Environment::try_from("production".to_string()).unwrap(),
-            Environment::Production
-        );
-    }
-
-    #[test]
-    fn production_environment_renders_as_production() {
-        assert_eq!(Environment::Production.as_str(), "production");
+    fn environment_try_from_as_str_is_self() {
+        for environment in [Environment::Local, Environment::Production] {
+            assert_eq!(
+                environment,
+                Environment::try_from(environment.as_str().to_string()).unwrap()
+            );
+        }
     }
 
     #[test]

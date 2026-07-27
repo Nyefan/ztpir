@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO subscriptions(email, name, status)\n            VALUES($1, $2, $3::subscription_status)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        {
+          "Custom": {
+            "name": "subscription_status",
+            "kind": {
+              "Enum": [
+                "pending_confirmation",
+                "confirmed",
+                "unsubscribed_from_all"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5c78a64e6d95b51a4a25059d06a2afd43540e10675b7052b4073686d04a09e27"
+}

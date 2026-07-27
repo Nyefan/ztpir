@@ -143,7 +143,6 @@ run = "cargo +nightly udeps --all-targets"
 run = [
     { task = "fmt" },
     { task = "db-postgres-init" },
-    { task = "db-postgres-shutdown" },
     { task = "check" },
     { task = "clippy" },
     { task = "udeps" },
@@ -155,7 +154,7 @@ depends = ["audit", "lint"]
 run = """
 #! /usr/bin/env bash
 set -eo pipefail
-trap 'mise run db-postgres-shutdown' EXIT
+#trap 'mise run db-postgres-shutdown' EXIT
 mise run db-postgres-init && mise run coverage && mise run build -- --release --locked
 """
 
