@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Debug)]
@@ -23,6 +24,12 @@ impl SubscriberName {
 impl AsRef<str> for SubscriberName {
     fn as_ref(&self) -> &str {
         &self.0
+    }
+}
+
+impl Display for SubscriberName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
     }
 }
 
