@@ -1,4 +1,4 @@
-use actix_web::{web, HttpResponse};
+use actix_web::{HttpResponse, web};
 use sqlx::PgPool;
 use tracing::instrument;
 
@@ -45,7 +45,7 @@ pub(crate) async fn subscribe(
         HttpResponse::InternalServerError().finish()
     }
 
-    (async || {
+    async {
         let subscriber: NewSubscriber = form.into_inner().try_into().map_err(bad_request)?;
         insert_subscriber(&connection_pool, &subscriber)
             .await
@@ -55,7 +55,7 @@ pub(crate) async fn subscribe(
             .map_err(email_client_error)?;
 
         Ok(HttpResponse::Ok().finish())
-    })()
+    }
     .await
     .unwrap_or_else(|err| err)
 }
@@ -65,7 +65,7 @@ async fn send_confirmation_email(
     subscriber: &NewSubscriber,
 ) -> Result<(), String> {
     let confirmation_link = "https://ztpir.nyefan.org/api/subscriptions/confirm";
-    let subject = format!("Welcome {}!", &subscriber.name);
+    let subject = format!("Welcome {}!", subscriber.name);
     let html_body = format!(
         "Welcome to our newsletter!<br />\
                         Click <a href=\"{confirmation_link}\">here</a> to confirm your subscription."

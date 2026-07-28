@@ -1,0 +1,63 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT email, name, status as \"status: SubscriptionStatus\" FROM subscriptions WHERE email = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "email",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "subscriptions",
+            "name": "email"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "subscriptions",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "status: SubscriptionStatus",
+        "type_info": {
+          "Custom": {
+            "name": "subscription_status",
+            "kind": {
+              "Enum": [
+                "pending_confirmation",
+                "confirmed",
+                "unsubscribed_from_all"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "subscriptions",
+            "name": "status"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "ca6033b6a717f07b4bcc7cdca96ccc472b848a36f583a1382464f9a65ebfa968"
+}
