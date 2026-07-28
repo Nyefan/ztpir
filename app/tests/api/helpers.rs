@@ -5,6 +5,7 @@ use sqlx::{AssertSqlSafe, Connection, Executor, PgConnection, PgPool};
 use std::sync::LazyLock;
 use tracing_subscriber::fmt::writer::BoxMakeWriter;
 use uuid::Uuid;
+use wiremock::MockServer;
 
 static TRACING: LazyLock<()> = LazyLock::new(|| {
     let sink = std::env::var("TEST_LOG")
@@ -17,6 +18,7 @@ static TRACING: LazyLock<()> = LazyLock::new(|| {
 pub struct TestApp {
     pub(crate) address: String,
     pub(crate) connection_pool: PgPool,
+    pub(crate) email_server: MockServer,
 }
 
 impl TestApp {
@@ -34,10 +36,13 @@ impl TestApp {
 pub async fn spawn_app() -> TestApp {
     LazyLock::force(&TRACING);
 
+    let email_server = MockServer::start().await;
+
     let config = {
         let mut config = get_config().expect("Failed to read configuration.");
         config.database.schema_name = Uuid::now_v7().to_string();
         config.application.port = 0;
+        config.email_client.base_url = email_server.uri();
         config
     };
 
@@ -52,6 +57,7 @@ pub async fn spawn_app() -> TestApp {
     TestApp {
         address,
         connection_pool: get_connection_pool(&config.database),
+        email_server,
     }
 }
 
