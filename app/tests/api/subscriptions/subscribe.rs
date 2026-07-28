@@ -18,7 +18,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
         .await;
 
     let response = app
-        .post_subscriptions(VALID_SUBSCRIPTION_PAYLOAD.into())
+        .post_subscriptions_subscribe(VALID_SUBSCRIPTION_PAYLOAD.into())
         .await;
     assert_eq!(StatusCode::OK, response.status());
 }
@@ -32,16 +32,16 @@ async fn subscribe_persists_the_new_subscriber() {
         .mount(&app.email_server)
         .await;
 
-    app.post_subscriptions(VALID_SUBSCRIPTION_PAYLOAD.into())
+    app.post_subscriptions_subscribe(VALID_SUBSCRIPTION_PAYLOAD.into())
         .await;
 
     let saved = sqlx::query!(
         r#"SELECT email, name, status as "status: SubscriptionStatus" FROM subscriptions WHERE email = $1"#,
         "ursula_le_guin@ztpir.com"
     )
-    .fetch_optional(&app.connection_pool)
-    .await
-    .expect("Failed to execute query");
+        .fetch_optional(&app.connection_pool)
+        .await
+        .expect("Failed to execute query");
 
     assert!(saved.is_some());
 
@@ -62,7 +62,7 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
     ];
 
     for (body, error_description) in cases {
-        let response = app.post_subscriptions(body.into()).await;
+        let response = app.post_subscriptions_subscribe(body.into()).await;
 
         assert_eq!(
             StatusCode::BAD_REQUEST,
@@ -82,7 +82,7 @@ async fn subscribe_returns_a_400_when_fields_are_present_but_invalid() {
     ];
 
     for (body, description) in test_cases {
-        let response = app.post_subscriptions(body.into()).await;
+        let response = app.post_subscriptions_subscribe(body.into()).await;
 
         assert_eq!(
             StatusCode::BAD_REQUEST,
@@ -102,7 +102,7 @@ async fn subscribe_sends_a_confirmation_email_with_valid_data() {
         .mount(&app.email_server)
         .await;
 
-    app.post_subscriptions(VALID_SUBSCRIPTION_PAYLOAD.into())
+    app.post_subscriptions_subscribe(VALID_SUBSCRIPTION_PAYLOAD.into())
         .await;
 
     let email_request = &app.email_server.received_requests().await.unwrap()[0];

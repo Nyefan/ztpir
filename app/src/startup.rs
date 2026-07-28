@@ -61,7 +61,14 @@ impl Application {
             App::new()
                 .wrap(TracingLogger::default())
                 .route("/healthz", web::get().to(routes::health_check))
-                .route("/subscriptions", web::post().to(routes::subscribe))
+                .route(
+                    "/subscriptions/subscribe",
+                    web::post().to(routes::subscriptions::subscribe),
+                )
+                .route(
+                    "/subscriptions/confirm",
+                    web::get().to(routes::subscriptions::confirm),
+                )
                 .app_data(connection_pool.clone())
                 .app_data(email_client.clone())
         })
