@@ -90,6 +90,33 @@ pub(crate) async fn subscribe(
     .unwrap_or_else(|err| err)
 }
 
+#[instrument(
+    name = "Saving new subscriber details in the database",
+    skip(transaction, new_subscriber)
+)]
+async fn insert_subscriber(
+    transaction: &mut Transaction<'_, Postgres>,
+    new_subscriber: &NewSubscriber,
+) -> Result<Uuid, sqlx::Error> {
+    sqlx::query!(
+        r#"
+            INSERT INTO subscriptions(email, name, status)
+            VALUES($1, $2, $3::subscription_status)
+            RETURNING id
+        "#,
+        new_subscriber.email.as_ref(),
+        new_subscriber.name.as_ref(),
+        SubscriptionStatus::PendingConfirmation as SubscriptionStatus
+    )
+    .fetch_one(&mut **transaction)
+    .await
+    .map(|result| result.id)
+    .map_err(|e| {
+        tracing::error!("Failed to insert subscriber: {:?}", e);
+        e
+    })
+}
+
 async fn insert_subscriber_confirmation_token(
     transaction: &mut Transaction<'_, Postgres>,
     subscriber_id: &Uuid,
@@ -137,33 +164,6 @@ async fn send_confirmation_email(
     email_client
         .send_email(email, &subject, &html_body, &text_body)
         .await
-}
-
-#[instrument(
-    name = "Saving new subscriber details in the database",
-    skip(transaction, new_subscriber)
-)]
-async fn insert_subscriber(
-    transaction: &mut Transaction<'_, Postgres>,
-    new_subscriber: &NewSubscriber,
-) -> Result<Uuid, sqlx::Error> {
-    sqlx::query!(
-        r#"
-            INSERT INTO subscriptions(email, name, status)
-            VALUES($1, $2, $3::subscription_status)
-            RETURNING id
-        "#,
-        new_subscriber.email.as_ref(),
-        new_subscriber.name.as_ref(),
-        SubscriptionStatus::PendingConfirmation as SubscriptionStatus
-    )
-    .fetch_one(&mut **transaction)
-    .await
-    .map(|result| result.id)
-    .map_err(|e| {
-        tracing::error!("Failed to insert subscriber: {:?}", e);
-        e
-    })
 }
 
 // TODO: test the actual behavior of subscribe (i.e. that it inserts into the db, etc.)
