@@ -22,6 +22,11 @@ pub struct TestApp {
     pub(crate) port: u16,
 }
 
+pub struct ConfirmationLinks {
+    pub html: reqwest::Url,
+    pub text: reqwest::Url,
+}
+
 impl TestApp {
     pub async fn post_subscriptions_subscribe(&self, body: String) -> reqwest::Response {
         reqwest::Client::new()
@@ -31,6 +36,32 @@ impl TestApp {
             .send()
             .await
             .expect("Failed to execute request.")
+    }
+
+    pub fn extract_confirmation_links(
+        &self,
+        email_request: &wiremock::Request,
+    ) -> ConfirmationLinks {
+        let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+        let get_link = |s: &str| {
+            let links = linkify::LinkFinder::new()
+                .links(s)
+                .filter(|l| *l.kind() == linkify::LinkKind::Url)
+                .collect::<Vec<_>>();
+            assert_eq!(links.len(), 1);
+            let mut confirmation_link = links[0]
+                .as_str()
+                .to_owned()
+                .parse::<reqwest::Url>()
+                .unwrap();
+            assert_eq!(confirmation_link.host_str().unwrap(), "localhost");
+            confirmation_link.set_port(Some(self.port)).unwrap();
+            confirmation_link
+        };
+
+        let html = get_link(&body["HtmlBody"].as_str().unwrap());
+        let text = get_link(&body["TextBody"].as_str().unwrap());
+        ConfirmationLinks { html, text }
     }
 }
 

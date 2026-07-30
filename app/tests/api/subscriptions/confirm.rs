@@ -1,6 +1,6 @@
 use super::VALID_SUBSCRIPTION_PAYLOAD;
-use crate::helpers::spawn_app;
-use reqwest::{StatusCode, Url};
+use crate::helpers::{ConfirmationLinks, spawn_app};
+use reqwest::StatusCode;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, ResponseTemplate};
 
@@ -28,19 +28,10 @@ async fn the_link_returned_by_subscribe_returns_a_200_if_called() {
     app.post_subscriptions_subscribe(VALID_SUBSCRIPTION_PAYLOAD.into())
         .await;
     let email_request = &app.email_server.received_requests().await.unwrap()[0];
-    let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
-
-    let get_link = |s: &str| {
-        let links = linkify::LinkFinder::new()
-            .links(s)
-            .filter(|l| *l.kind() == linkify::LinkKind::Url)
-            .collect::<Vec<_>>();
-        assert_eq!(links.len(), 1);
-        links[0].as_str().to_owned()
-    };
-    let confirmation_link = &get_link(&body["HtmlBody"].as_str().unwrap());
-    let mut confirmation_link = Url::parse(confirmation_link.as_str()).unwrap();
-    confirmation_link.set_port(Some(app.port)).unwrap();
+    let ConfirmationLinks {
+        html: confirmation_link,
+        ..
+    } = app.extract_confirmation_links(email_request);
     assert_eq!(confirmation_link.host_str().unwrap(), "localhost");
 
     let response = reqwest::get(confirmation_link).await.unwrap();
