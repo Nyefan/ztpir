@@ -103,12 +103,14 @@ docker exec "${POSTGRES_CONTAINER_NAME}" psql -U "${POSTGRES_USER}" -c "${CREATE
 
 sqlx database create -D "${POSTGRES_SQLX_DATABASE_URI}"
 sqlx migrate run -D "${POSTGRES_SQLX_DATABASE_URI}"
-cargo sqlx prepare -D "${POSTGRES_SQLX_DATABASE_URI}" --all -- --all-targets
 
 >&2 echo "Postgres is available on port ${POSTGRES_PORT}"
 >&2 echo "Connection String:"
 >&2 echo "${POSTGRES_SQLX_DATABASE_URI}"
 """
+
+[tasks.db-postgres-prepare]
+run = 'cargo sqlx prepare -D "${POSTGRES_SQLX_DATABASE_URI}" --all -- --all-targets'
 
 [tasks.db-postgres-migrate]
 run = 'sqlx migrate run -D "${POSTGRES_SQLX_DATABASE_URI}"'
@@ -143,9 +145,8 @@ run = "cargo +nightly udeps --all-targets"
 run = [
     { task = "fmt" },
     { task = "db-postgres-init" },
-    { task = "check" },
-    { task = "clippy" },
-    { task = "udeps" },
+    { task = "db-postgres-prepare"},
+    { tasks = ["check", "clippy", "udeps"]},
 ]
 
 [tasks.ci]

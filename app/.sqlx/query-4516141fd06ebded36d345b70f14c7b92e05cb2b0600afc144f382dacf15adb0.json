@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT subscriptions_id FROM subscriptions_confirmation_tokens WHERE token = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "subscriptions_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "subscriptions_confirmation_tokens",
+            "name": "subscriptions_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "4516141fd06ebded36d345b70f14c7b92e05cb2b0600afc144f382dacf15adb0"
+}

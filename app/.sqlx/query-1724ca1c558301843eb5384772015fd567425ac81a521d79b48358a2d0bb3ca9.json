@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO subscriptions(email, name, status)\n            VALUES($1, $2, $3::subscription_status)\n            RETURNING id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "subscriptions",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        {
+          "Custom": {
+            "name": "subscription_status",
+            "kind": {
+              "Enum": [
+                "pending_confirmation",
+                "confirmed",
+                "unsubscribed_from_all"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "1724ca1c558301843eb5384772015fd567425ac81a521d79b48358a2d0bb3ca9"
+}

@@ -38,13 +38,9 @@ async fn subscribe_persists_the_new_subscriber() {
         r#"SELECT email, name, status as "status: SubscriptionStatus" FROM subscriptions WHERE email = $1"#,
         "ursula_le_guin@ztpir.com"
     )
-        .fetch_optional(&app.connection_pool)
+        .fetch_one(&app.connection_pool)
         .await
         .expect("Failed to execute query");
-
-    assert!(saved.is_some());
-
-    let saved = saved.unwrap();
 
     assert_eq!("ursula_le_guin@ztpir.com", saved.email);
     assert_eq!("le guin", saved.name);
