@@ -1,3 +1,5 @@
+application:
+  base_url: "https://ztpir.nyefan.org"
 database:
   username: "app"
   password: "password"

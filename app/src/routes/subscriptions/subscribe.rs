@@ -4,6 +4,7 @@ use tracing::instrument;
 
 use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName, SubscriptionStatus};
 use crate::email_client::EmailClient;
+use crate::startup::ApplicationBaseUrl;
 
 // TODO: mask email and name as SecretStrings - those are also PII and shouldn't be logged except for errors
 #[derive(Debug, serde::Deserialize)]
@@ -24,13 +25,14 @@ impl TryFrom<FormData> for NewSubscriber {
 
 #[instrument(
     name = "New subscription request received",
-    skip(form, connection_pool, email_client),
+    skip(form, connection_pool, email_client, base_url),
     fields(email = %form.email, name = %form.name)
 )]
 pub(crate) async fn subscribe(
     form: web::Form<FormData>,
     connection_pool: web::Data<PgPool>,
     email_client: web::Data<EmailClient>,
+    base_url: web::Data<ApplicationBaseUrl>,
 ) -> HttpResponse {
     fn bad_request(err: String) -> HttpResponse {
         tracing::warn!("Failed to parse form data: {:?}", err);
@@ -50,7 +52,7 @@ pub(crate) async fn subscribe(
         insert_subscriber(&connection_pool, &subscriber)
             .await
             .map_err(database_error)?;
-        send_confirmation_email(&email_client, &subscriber)
+        send_confirmation_email(&email_client, &subscriber, &base_url)
             .await
             .map_err(email_client_error)?;
 
@@ -63,8 +65,10 @@ pub(crate) async fn subscribe(
 async fn send_confirmation_email(
     email_client: &EmailClient,
     subscriber: &NewSubscriber,
+    base_url: &ApplicationBaseUrl,
 ) -> Result<(), String> {
-    let confirmation_link = "https://ztpir.nyefan.org/api/subscriptions/confirm";
+    let confirmation_link =
+        format!("{base_url}/subscriptions/confirm?subscription_token=FAKE-TOKEN");
     let subject = format!("Welcome {}!", subscriber.name);
     let html_body = format!(
         "Welcome to our newsletter!<br />\

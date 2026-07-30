@@ -1,4 +1,8 @@
+use super::VALID_SUBSCRIPTION_PAYLOAD;
 use crate::helpers::spawn_app;
+use reqwest::{StatusCode, Url};
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, ResponseTemplate};
 
 #[tokio::test]
 async fn confirmations_without_token_are_rejected_with_a_403() {
@@ -8,5 +12,37 @@ async fn confirmations_without_token_are_rejected_with_a_403() {
         .await
         .unwrap();
 
-    assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST)
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST)
+}
+
+#[tokio::test]
+async fn the_link_returned_by_subscribe_returns_a_200_if_called() {
+    let app = spawn_app().await;
+
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(StatusCode::OK))
+        .mount(&app.email_server)
+        .await;
+
+    app.post_subscriptions_subscribe(VALID_SUBSCRIPTION_PAYLOAD.into())
+        .await;
+    let email_request = &app.email_server.received_requests().await.unwrap()[0];
+    let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+
+    let get_link = |s: &str| {
+        let links = linkify::LinkFinder::new()
+            .links(s)
+            .filter(|l| *l.kind() == linkify::LinkKind::Url)
+            .collect::<Vec<_>>();
+        assert_eq!(links.len(), 1);
+        links[0].as_str().to_owned()
+    };
+    let confirmation_link = &get_link(&body["HtmlBody"].as_str().unwrap());
+    let mut confirmation_link = Url::parse(confirmation_link.as_str()).unwrap();
+    confirmation_link.set_port(Some(app.port)).unwrap();
+    assert_eq!(confirmation_link.host_str().unwrap(), "localhost");
+
+    let response = reqwest::get(confirmation_link).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
 }

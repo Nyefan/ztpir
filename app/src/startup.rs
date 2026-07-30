@@ -5,6 +5,7 @@ use actix_web::dev::Server;
 use actix_web::{App, HttpServer, web};
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
+use std::fmt::Display;
 use std::net::TcpListener;
 use std::time::Duration;
 use tracing_actix_web::TracingLogger;
@@ -16,6 +17,14 @@ pub fn get_connection_pool(config: &DatabaseSettings) -> PgPool {
 pub struct Application {
     port: u16,
     server: Server,
+}
+
+pub struct ApplicationBaseUrl(pub String);
+
+impl Display for ApplicationBaseUrl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        String::fmt(&self.0, f)
+    }
 }
 
 impl Application {
@@ -45,7 +54,12 @@ impl Application {
         );
         let listener = TcpListener::bind(address)?;
         let port = listener.local_addr()?.port();
-        let server = Self::spawn_server(listener, connection_pool, email_client)?;
+        let server = Self::spawn_server(
+            listener,
+            connection_pool,
+            email_client,
+            ApplicationBaseUrl(config.application.base_url),
+        )?;
 
         Ok(Self { port, server })
     }
@@ -54,9 +68,11 @@ impl Application {
         listener: TcpListener,
         connection_pool: PgPool,
         email_client: EmailClient,
+        base_url: ApplicationBaseUrl,
     ) -> Result<Server, std::io::Error> {
         let connection_pool = web::Data::new(connection_pool);
         let email_client = web::Data::new(email_client);
+        let base_url = web::Data::new(base_url);
         let server = HttpServer::new(move || {
             App::new()
                 .wrap(TracingLogger::default())
@@ -71,6 +87,7 @@ impl Application {
                 )
                 .app_data(connection_pool.clone())
                 .app_data(email_client.clone())
+                .app_data(base_url.clone())
         })
         .listen(listener)?
         .run();

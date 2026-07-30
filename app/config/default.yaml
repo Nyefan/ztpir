@@ -1,6 +1,7 @@
 application:
   port: 8080
   interface: "0.0.0.0"
+  base_url: "http://localhost"
 database:
   require_ssl: true
   username: ""

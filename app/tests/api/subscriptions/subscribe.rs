@@ -1,11 +1,10 @@
+use super::VALID_SUBSCRIPTION_PAYLOAD;
 use crate::helpers::spawn_app;
 use app::domain::SubscriptionStatus;
 use reqwest::StatusCode;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, ResponseTemplate};
-
 // TODO: urlencode with lib
-static VALID_SUBSCRIPTION_PAYLOAD: &str = "name=le%20guin&email=ursula_le_guin%40ztpir.com";
 
 #[tokio::test]
 async fn subscribe_returns_a_200_for_valid_form_data() {
