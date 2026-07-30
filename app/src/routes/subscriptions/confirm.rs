@@ -30,11 +30,10 @@ pub async fn confirm(parameters: web::Query<Parameters>, pool: web::Data<PgPool>
     }
 
     async {
-        let subscriber_id: SubscriberId =
-            get_subscriber_id_from_token(&pool, &parameters.subscription_token)
-                .await
-                .map_err(handle_get_subscriber_error)?
-                .ok_or_else(handle_unauthorized_token(&parameters.subscription_token))?;
+        let subscriber_id = get_subscriber_id_from_token(&pool, &parameters.subscription_token)
+            .await
+            .map_err(handle_get_subscriber_error)?
+            .ok_or_else(handle_unauthorized_token(&parameters.subscription_token))?;
         confirm_subscriber(&pool, subscriber_id)
             .await
             .map_err(handle_confirm_subscriber_error)?;

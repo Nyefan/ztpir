@@ -6,7 +6,7 @@ use crate::startup::ApplicationBaseUrl;
 use actix_web::{HttpResponse, web};
 use rand::distr::Alphanumeric;
 use rand::{RngExt, rng};
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, Transaction};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -38,25 +38,21 @@ impl TryFrom<FormData> for NewSubscriber {
 
 #[instrument(
     name = "New subscription request received",
-    skip(form, connection_pool, email_client, base_url),
+    skip(form, pool, email_client, application_base_url),
     fields(email = %form.email, name = %form.name)
 )]
 pub(crate) async fn subscribe(
     form: web::Form<FormData>,
-    connection_pool: web::Data<PgPool>,
+    pool: web::Data<PgPool>,
     email_client: web::Data<EmailClient>,
-    base_url: web::Data<ApplicationBaseUrl>,
+    application_base_url: web::Data<ApplicationBaseUrl>,
 ) -> HttpResponse {
     fn bad_request(err: String) -> HttpResponse {
         tracing::warn!("Failed to parse form data: {:?}", err);
         HttpResponse::BadRequest().body(err)
     }
-    fn insert_subscriber_error(err: sqlx::Error) -> HttpResponse {
-        tracing::error!("Failed to insert into subscriptions: {:?}", err);
-        HttpResponse::InternalServerError().finish()
-    }
-    fn insert_subscriber_confirmation_token_error(err: sqlx::Error) -> HttpResponse {
-        tracing::error!("Failed to insert subscriber token: {:?}", err);
+    fn database_error(err: sqlx::Error) -> HttpResponse {
+        tracing::error!("Failed to insert into database: {:?}", err);
         HttpResponse::InternalServerError().finish()
     }
     fn email_client_error(err: String) -> HttpResponse {
@@ -66,17 +62,25 @@ pub(crate) async fn subscribe(
 
     async {
         let subscriber: NewSubscriber = form.into_inner().try_into().map_err(bad_request)?;
-        let subscriber_id = insert_subscriber(&connection_pool, &subscriber)
+
+        // should the transaction not commit until the email is sent?  long transaction = bad, but
+        // idempotency is not guaranteed by the compiler - how would we even represent that???
+        {
+            let mut transaction = pool.begin().await.map_err(database_error)?;
+            let subscriber_id = insert_subscriber(&mut transaction, &subscriber)
+                .await
+                .map_err(database_error)?;
+            insert_subscriber_confirmation_token(
+                &mut transaction,
+                &subscriber_id,
+                &subscriber.confirmation_token,
+            )
             .await
-            .map_err(insert_subscriber_error)?;
-        insert_subscriber_confirmation_token(
-            &connection_pool,
-            &subscriber_id,
-            &subscriber.confirmation_token,
-        )
-        .await
-        .map_err(insert_subscriber_confirmation_token_error)?;
-        send_confirmation_email(&email_client, &subscriber, &base_url)
+            .map_err(database_error)?;
+            transaction.commit().await.map_err(database_error)?;
+        }
+
+        send_confirmation_email(&email_client, &subscriber, &application_base_url)
             .await
             .map_err(email_client_error)?;
 
@@ -87,7 +91,7 @@ pub(crate) async fn subscribe(
 }
 
 async fn insert_subscriber_confirmation_token(
-    pool: &PgPool,
+    transaction: &mut Transaction<'_, Postgres>,
     subscriber_id: &Uuid,
     confirmation_token: &SubscriberConfirmationToken,
 ) -> Result<(), sqlx::Error> {
@@ -99,7 +103,7 @@ async fn insert_subscriber_confirmation_token(
         subscriber_id,
         confirmation_token
     )
-    .execute(pool)
+    .execute(&mut **transaction)
     .await
     .map(|_| {
         tracing::debug!("Inserted subscription_token: {confirmation_token}");
@@ -137,10 +141,10 @@ async fn send_confirmation_email(
 
 #[instrument(
     name = "Saving new subscriber details in the database",
-    skip(pool, new_subscriber)
+    skip(transaction, new_subscriber)
 )]
 async fn insert_subscriber(
-    pool: &PgPool,
+    transaction: &mut Transaction<'_, Postgres>,
     new_subscriber: &NewSubscriber,
 ) -> Result<Uuid, sqlx::Error> {
     sqlx::query!(
@@ -153,7 +157,7 @@ async fn insert_subscriber(
         new_subscriber.name.as_ref(),
         SubscriptionStatus::PendingConfirmation as SubscriptionStatus
     )
-    .fetch_one(pool)
+    .fetch_one(&mut **transaction)
     .await
     .map(|result| result.id)
     .map_err(|e| {
