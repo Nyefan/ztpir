@@ -134,7 +134,7 @@ depends = ["setup-rust", "setup-container"]
 run = "cargo test | bunyan"
 
 [tasks.test-with-logs]
-env = { TEST_LOG = true, }
+env = { TEST_LOG = true, RUST_LOG = "sqlx=error,info"}
 run = [{ task = "test" }]
 
 

@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "ALTER TABLE subscriptions_confirmation_tokens DROP COLUMN token",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "a14961b954b417a10673932c41313979c82c7993fc9b401ab8dd919c675af52b"
+}

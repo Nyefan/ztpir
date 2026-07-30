@@ -104,3 +104,18 @@ async fn subscribe_sends_a_confirmation_email_with_valid_data() {
     let ConfirmationLinks { html, text } = app.extract_confirmation_links(email_request);
     assert_eq!(html, text);
 }
+
+#[tokio::test]
+async fn subscribe_returns_500_when_there_is_a_fatal_database_error() {
+    let app = spawn_app().await;
+    // Sabotage the database
+    sqlx::query!("ALTER TABLE subscriptions_confirmation_tokens DROP COLUMN token")
+        .execute(&app.connection_pool)
+        .await
+        .unwrap();
+
+    let response = app
+        .post_subscriptions_subscribe(VALID_SUBSCRIPTION_PAYLOAD.into())
+        .await;
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+}
