@@ -117,5 +117,5 @@ async fn subscribe_returns_500_when_there_is_a_fatal_database_error() {
     let response = app
         .post_subscriptions_subscribe(VALID_SUBSCRIPTION_PAYLOAD.into())
         .await;
-    assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }
