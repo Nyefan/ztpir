@@ -1,11 +1,6 @@
-FROM rust:1.96.1-alpine3.24 AS builder
+FROM rust:1.97.1-alpine3.24 AS builder
 
 WORKDIR /build
-
-RUN apk add mise lld clang mold musl-dev
-
-ARG TARGET="aarch64-unknown-linux-musl"
-RUN rustup target add "${TARGET}"
 
 COPY Cargo.lock Cargo.toml ./
 COPY .sqlx .sqlx
@@ -15,15 +10,18 @@ COPY src src
 ARG SQLX_OFFLINE=true
 RUN --mount=type=cache,target=/build/target \
     --mount=type=cache,target=/usr/local/cargo/registry \
-    cargo build --release --locked --target "${TARGET}" && \
-    cp "/build/target/${TARGET}/release/app" app
+    cargo build --release --locked && \
+    cp "target/release/app" app
 
 
 FROM scratch AS final
 
 WORKDIR /app
-COPY --from=builder /build/app ./ztpir
-COPY config config
+USER 10001:10001
 
-ENV ZTPIR_ENVIRONMENT "production"
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=builder --chown=10001:10001 /build/app ./ztpir
+COPY --chown=10001:10001 config config
+
+ENV ZTPIR_ENVIRONMENT="production"
 ENTRYPOINT ["/app/ztpir"]
