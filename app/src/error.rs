@@ -53,3 +53,57 @@ impl<T> OnErrorStatus<T> for Result<T, anyhow::Error> {
         self.map_err(|e| Error::Unhandleable(e, status_code))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use anyhow::anyhow;
+    use fake::Fake;
+    use fake::faker::lorem::en::Sentence;
+
+    #[tokio::test]
+    async fn handleable_error_returns_500_if_not_handled() {
+        let error = Error::Handleable(anyhow!(Sentence(1..2).fake::<String>()));
+        assert_eq!(error.status_code(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[tokio::test]
+    async fn unhandleable_error_returns_input_status_code() {
+        let code = StatusCode::from_u16((100..1000).fake()).unwrap();
+        let error = Error::Unhandleable(anyhow!(Sentence(1..2).fake::<String>()), code);
+        assert_eq!(error.status_code(), code);
+    }
+
+    #[tokio::test]
+    async fn unknown_error_returns_500() {
+        let error = Error::Unknown(anyhow!(Sentence(1..2).fake::<String>()));
+        assert_eq!(error.status_code(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[tokio::test]
+    async fn handleable_error_displays_as_input_str() {
+        let body = Sentence(1..2).fake::<String>();
+        let error = Error::Handleable(anyhow!(body.clone()));
+        let display = format!("{error}");
+        assert_eq!(display, body)
+    }
+
+    #[tokio::test]
+    async fn unhandleable_error_displays_as_input_str() {
+        let body = Sentence(1..2).fake::<String>();
+        let error = Error::Unhandleable(
+            anyhow!(body.clone()),
+            StatusCode::from_u16((100..1000).fake()).unwrap(),
+        );
+        let display = format!("{error}");
+        assert_eq!(display, body)
+    }
+
+    #[tokio::test]
+    async fn unknown_error_displays_as_input_str() {
+        let body = Sentence(1..2).fake::<String>();
+        let error = Error::Unknown(anyhow!(body.clone()));
+        let display = format!("{error}");
+        assert_eq!(display, body)
+    }
+}
