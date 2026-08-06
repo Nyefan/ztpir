@@ -41,9 +41,7 @@ impl EmailClient {
         html_content: &str,
         text_content: &str,
     ) -> Result<(), anyhow::Error> {
-        let url = self
-            .base_url
-            .join("/email")?;
+        let url = self.base_url.join("/email")?;
         let body = SendEmailRequest {
             from: self.sender.as_ref(),
             to: recipient.as_ref(),
@@ -101,7 +99,10 @@ mod tests {
     }
 
     fn email() -> SubscriberEmail {
-        SafeEmail().fake::<String>().parse::<SubscriberEmail>().unwrap()
+        SafeEmail()
+            .fake::<String>()
+            .parse::<SubscriberEmail>()
+            .unwrap()
     }
 
     fn email_client(base_url: String) -> EmailClient {

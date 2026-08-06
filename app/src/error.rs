@@ -1,3 +1,4 @@
+use crate::error::Error::Unhandleable;
 use actix_web::ResponseError;
 use actix_web::http::StatusCode;
 use anyhow::Context;
@@ -51,6 +52,16 @@ pub trait OnErrorStatus<T> {
 impl<T> OnErrorStatus<T> for Result<T, anyhow::Error> {
     fn on_error_status(self, status_code: StatusCode) -> Result<T, Error> {
         self.map_err(|e| Error::Unhandleable(e, status_code))
+    }
+}
+
+pub trait WhenNoneReturn<T> {
+    fn when_none_return(self, status_code: StatusCode, body: &'static str) -> Result<T, Error>;
+}
+
+impl<T> WhenNoneReturn<T> for Option<T> {
+    fn when_none_return(self, status_code: StatusCode, body: &'static str) -> Result<T, Error> {
+        self.context(body).map_err(|e| Unhandleable(e, status_code))
     }
 }
 

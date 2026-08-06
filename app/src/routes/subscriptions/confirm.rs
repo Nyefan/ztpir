@@ -1,4 +1,6 @@
 use crate::domain::{SubscriberConfirmationToken, SubscriberId, SubscriptionStatus};
+use crate::error::{Error, OnErrorReturn, WhenNoneReturn};
+use actix_web::http::StatusCode;
 use actix_web::{HttpResponse, web};
 use sqlx::PgPool;
 
@@ -8,40 +10,28 @@ pub struct Parameters {
 }
 
 #[tracing::instrument(name = "Confirm a pending subscriber", skip(parameters, pool))]
-pub async fn confirm(parameters: web::Query<Parameters>, pool: web::Data<PgPool>) -> HttpResponse {
-    fn handle_get_subscriber_error(err: sqlx::Error) -> HttpResponse {
-        tracing::error!(
-            "Failed to retrieve subscriber from confirmation token: {:?}",
-            err
-        );
-        HttpResponse::InternalServerError().finish()
-    }
-    fn handle_unauthorized_token(
-        token: &SubscriberConfirmationToken,
-    ) -> impl FnOnce() -> HttpResponse {
-        move || -> HttpResponse {
-            tracing::warn!("Supplied subscriber confirmation token not found: {token}");
-            HttpResponse::Unauthorized().finish()
-        }
-    }
-    fn handle_confirm_subscriber_error(err: sqlx::Error) -> HttpResponse {
-        tracing::error!("Failed to confirm subscriber: {:?}", err);
-        HttpResponse::InternalServerError().finish()
-    }
-
-    async {
-        let subscriber_id = get_subscriber_id_from_token(&pool, &parameters.subscription_token)
-            .await
-            .map_err(handle_get_subscriber_error)?
-            .ok_or_else(handle_unauthorized_token(&parameters.subscription_token))?;
-        confirm_subscriber(&pool, subscriber_id)
-            .await
-            .map_err(handle_confirm_subscriber_error)?;
-
-        Ok(HttpResponse::Ok().finish())
-    }
-    .await
-    .unwrap_or_else(|err| err)
+pub async fn confirm(
+    parameters: web::Query<Parameters>,
+    pool: web::Data<PgPool>,
+) -> Result<HttpResponse, Error> {
+    let token = &parameters.subscription_token;
+    let subscriber_id = get_subscriber_id_from_token(&pool, token)
+        .await
+        .on_error_return(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to fetch subscriber_id from token",
+        )?
+        .when_none_return(
+            StatusCode::UNAUTHORIZED,
+            "Supplied subscriber confirmation token not found: {token}",
+        )?;
+    confirm_subscriber(&pool, subscriber_id)
+        .await
+        .on_error_return(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to confirm subscriber",
+        )?;
+    Ok(HttpResponse::Ok().finish())
 }
 
 #[tracing::instrument(name = "Get subscriber_id from token", skip(pool, token))]
@@ -49,17 +39,14 @@ async fn get_subscriber_id_from_token(
     pool: &PgPool,
     token: &SubscriberConfirmationToken,
 ) -> Result<Option<SubscriberId>, sqlx::Error> {
-    sqlx::query!(
+    let id = sqlx::query!(
         r#"SELECT subscriptions_id FROM subscriptions_confirmation_tokens WHERE token = $1"#,
         token
     )
     .fetch_optional(pool)
-    .await
-    .map_err(|err| {
-        tracing::error!("Failed to fetch subscriber_id from token: {:?}", err);
-        err
-    })
-    .map(|maybe_row| maybe_row.and_then(|row| row.subscriptions_id.map(|id| id as SubscriberId)))
+    .await?
+    .and_then(|row| row.subscriptions_id.map(|id| id as SubscriberId));
+    Ok(id)
 }
 
 #[tracing::instrument(name = "Mark subscriber as confirmed", skip(subscriber_id, pool))]
