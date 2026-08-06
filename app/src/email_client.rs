@@ -40,11 +40,10 @@ impl EmailClient {
         subject: &str,
         html_content: &str,
         text_content: &str,
-    ) -> Result<(), String> {
+    ) -> Result<(), anyhow::Error> {
         let url = self
             .base_url
-            .join("/email")
-            .map_err(|err| err.to_string())?;
+            .join("/email")?;
         let body = SendEmailRequest {
             from: self.sender.as_ref(),
             to: recipient.as_ref(),
@@ -60,10 +59,8 @@ impl EmailClient {
             )
             .json(&body)
             .send()
-            .await
-            .map_err(|err| err.to_string())?
-            .error_for_status()
-            .map_err(|err| err.to_string())?;
+            .await?
+            .error_for_status()?;
         Ok(())
     }
 }
@@ -104,7 +101,7 @@ mod tests {
     }
 
     fn email() -> SubscriberEmail {
-        SubscriberEmail::parse(SafeEmail().fake()).unwrap()
+        SafeEmail().fake::<String>().parse::<SubscriberEmail>().unwrap()
     }
 
     fn email_client(base_url: String) -> EmailClient {

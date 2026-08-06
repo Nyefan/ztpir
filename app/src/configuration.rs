@@ -54,8 +54,8 @@ pub struct EmailClientSettings {
 }
 
 impl EmailClientSettings {
-    pub fn sender(&self) -> Result<SubscriberEmail, String> {
-        SubscriberEmail::parse(self.sender_email.clone())
+    pub fn sender(&self) -> Result<SubscriberEmail, anyhow::Error> {
+        self.sender_email.parse::<SubscriberEmail>()
     }
 }
 

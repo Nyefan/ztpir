@@ -8,6 +8,7 @@ warnings = "deny"
 
 [dependencies]
 actix-web = "4.14.0"
+anyhow = "1.0.104"
 config = "0.15.25"
 rand = { version = "0.10.2", features = ["thread_rng"] }
 reqwest = { version = "0.13.4", features = ["json", "rustls"] }
@@ -27,6 +28,7 @@ sqlx = {
         "uuid",
     ]
 }
+thiserror = "2.0.19"
 tracing = { version = "0.1.44" }
 tracing-actix-web = { version = "0.7.22", features = ["uuid_v7"] }
 tracing-bunyan-formatter = { version = "0.3.10" }

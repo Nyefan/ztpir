@@ -1,14 +1,17 @@
+use std::str::FromStr;
+use anyhow::anyhow;
 use validator::ValidateEmail;
 
 #[derive(Debug)]
 pub struct SubscriberEmail(String);
 
-impl SubscriberEmail {
-    pub fn parse(s: String) -> Result<SubscriberEmail, String> {
+impl FromStr for SubscriberEmail {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.validate_email() {
-            Ok(Self(s))
+            Ok(Self(s.to_string()))
         } else {
-            Err(format!("{} is not a valid subscriber email.", s))
+            Err(anyhow!("{s} is not a valid subscriber email."))
         }
     }
 }
@@ -42,29 +45,29 @@ mod tests {
     #[test]
     fn at_least_one_valid_email_is_accepted() {
         let email = "ursula@ztpir.com".to_string();
-        assert_ok!(SubscriberEmail::parse(email));
+        assert_ok!(email.parse::<SubscriberEmail>());
     }
 
     #[quickcheck_macros::quickcheck]
     fn many_valid_emails_are_accepted(email: ValidEmailFixture) -> bool {
-        SubscriberEmail::parse(email.0).is_ok()
+        email.0.parse::<SubscriberEmail>().is_ok()
     }
 
     #[test]
     fn empty_string_is_rejected() {
         let email = "".to_string();
-        assert_err!(SubscriberEmail::parse(email));
+        assert_err!(email.parse::<SubscriberEmail>());
     }
 
     #[test]
     fn email_missing_at_symbol_is_rejected() {
         let email = "ursulaztpir.com".to_string();
-        assert_err!(SubscriberEmail::parse(email));
+        assert_err!(email.parse::<SubscriberEmail>());
     }
 
     #[test]
     fn email_missing_subject_is_rejected() {
         let email = "@ztpir.com".to_string();
-        assert_err!(SubscriberEmail::parse(email));
+        assert_err!(email.parse::<SubscriberEmail>());
     }
 }
